@@ -33,12 +33,13 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Set up Gradle Cache
+      - name: Set up Gradle 8.11.1 & Cache
         uses: gradle/actions/setup-gradle@v4
         with:
+          gradle-version: '8.11.1'
           cache-read-only: false
 
-      - name: Ensure Debug Keystore is Generated & Present
+      - name: Prepare Debug Keystore
         run: |
           echo "Verificando / Generando debug.keystore para firma directa..."
           if [ -f "debug.keystore.base64" ] && [ -s "debug.keystore.base64" ]; then
@@ -60,34 +61,15 @@ jobs:
           fi
           echo "debug.keystore listo y verificado."
 
-      - name: Prepare Gradle Wrapper
-        run: |
-          if [ ! -f "gradlew" ]; then
-            echo "Generando gradle wrapper..."
-            gradle wrapper || echo "Utilizando Gradle del sistema"
-          fi
-          if [ -f "gradlew" ]; then
-            chmod +x gradlew
-          fi
-
       - name: Build Debug APK
         run: |
-          BUILD_CMD="./gradlew assembleDebug --stacktrace"
-          if [ ! -f "./gradlew" ]; then
-            BUILD_CMD="gradle assembleDebug --stacktrace"
-          fi
-          
           if [ "${{ github.event.inputs.clean_build }}" = "true" ]; then
-            echo "Ejecutando Clean Build..."
-            if [ -f "./gradlew" ]; then
-              ./gradlew clean
-            else
-              gradle clean
-            fi
+            echo "Ejecutando Clean..."
+            gradle clean --no-configuration-cache
           fi
           
-          echo "Compilando Debug APK..."
-          $BUILD_CMD
+          echo "Compilando Debug APK con Gradle 8.11.1..."
+          gradle :app:assembleDebug --no-configuration-cache --no-daemon --stacktrace
 
       - name: Locate Generated APK
         id: locate-apk
