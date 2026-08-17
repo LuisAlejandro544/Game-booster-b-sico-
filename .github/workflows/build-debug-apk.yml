@@ -1,0 +1,109 @@
+name: Build Debug APK (Manual Trigger)
+
+on:
+  workflow_dispatch:
+    inputs:
+      clean_build:
+        description: 'Ejecutar clean antes de compilar (true/false)'
+        required: false
+        default: 'false'
+        type: boolean
+
+concurrency:
+  group: build-debug-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-apk:
+    name: Compile & Sign Debug APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Codebase
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Set up Gradle Cache
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: false
+
+      - name: Ensure Debug Keystore is Generated & Present
+        run: |
+          echo "Verificando / Generando debug.keystore para firma directa..."
+          if [ -f "debug.keystore.base64" ] && [ -s "debug.keystore.base64" ]; then
+            echo "Decodificando debug.keystore desde debug.keystore.base64..."
+            base64 -d debug.keystore.base64 > debug.keystore
+          fi
+          
+          if [ ! -f "debug.keystore" ]; then
+            echo "Generando nueva llave debug.keystore mediante keytool..."
+            keytool -genkey -v \
+              -keystore debug.keystore \
+              -storepass android \
+              -alias androiddebugkey \
+              -keypass android \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
+          fi
+          echo "debug.keystore listo y verificado."
+
+      - name: Prepare Gradle Wrapper
+        run: |
+          if [ ! -f "gradlew" ]; then
+            echo "Generando gradle wrapper..."
+            gradle wrapper || echo "Utilizando Gradle del sistema"
+          fi
+          if [ -f "gradlew" ]; then
+            chmod +x gradlew
+          fi
+
+      - name: Build Debug APK
+        run: |
+          BUILD_CMD="./gradlew assembleDebug --stacktrace"
+          if [ ! -f "./gradlew" ]; then
+            BUILD_CMD="gradle assembleDebug --stacktrace"
+          fi
+          
+          if [ "${{ github.event.inputs.clean_build }}" = "true" ]; then
+            echo "Ejecutando Clean Build..."
+            if [ -f "./gradlew" ]; then
+              ./gradlew clean
+            else
+              gradle clean
+            fi
+          fi
+          
+          echo "Compilando Debug APK..."
+          $BUILD_CMD
+
+      - name: Locate Generated APK
+        id: locate-apk
+        run: |
+          APK_FILE=$(find app/build/outputs/apk/debug/ -name "*.apk" -type f | head -n 1)
+          if [ -z "$APK_FILE" ]; then
+            echo "Error: No se encontró ningún archivo APK generado."
+            exit 1
+          fi
+          echo "APK encontrado: $APK_FILE"
+          echo "apk_path=$APK_FILE" >> $GITHUB_OUTPUT
+
+      - name: Upload Debug APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: GameBooster-Turbo-Debug-APK
+          path: ${{ steps.locate-apk.outputs.apk_path }}
+          retention-days: 14
+          if-no-files-found: error

@@ -90,7 +90,8 @@ Este documento detalla la organización de directorios, capas de arquitectura mo
 │   └── libs.versions.toml                   # Catálogo de versiones centralizado
 ├── .github/
 │   └── workflows/
-│       └── sync-from-zip.yml                # Workflow de sincronización automática desde archivo comprimido en zip/
+│       ├── sync-from-zip.yml                # Workflow de sincronización automática desde archivo comprimido en zip/
+│       └── build-debug-apk.yml              # Workflow manual para compilar y firmar el APK Debug con caché
 ├── zip/
 │   └── .gitkeep                             # Carpeta para alojar archivos .zip / .7z / .tar.gz para sincronización
 ├── commit_message.txt                       # Archivo opcional para personalizar el mensaje de commit al sincronizar

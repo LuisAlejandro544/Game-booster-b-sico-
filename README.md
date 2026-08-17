@@ -69,25 +69,27 @@ Si tienes **Android 11 o superior**, puedes activar todas las funciones avanzada
 | **Almacenamiento Local**| Room Database / SharedPreferences |
 | **Motor Nativo (C++)**  | Android NDK (CMakeLists.txt + JNI) |
 | **Motor Nativo (Rust)** | Rust 2021 Edition (Cargo + FFI) |
-| **CI/CD & Sincronización**| GitHub Actions (`sync-from-zip.yml`) para carga vía ZIP |
+| **CI/CD & Automatización**| GitHub Actions (`sync-from-zip.yml` & `build-debug-apk.yml`) |
 | **Distribución**        | APK directo sin dependencias cerradas de Google Play Services |
 
 ---
 
-## 📦 Sincronización y Actualización vía Archivo ZIP (GitHub Actions)
+## 📦 Flujos de Trabajo de GitHub Actions
 
-El repositorio incluye un flujo de trabajo automatizado en `.github/workflows/sync-from-zip.yml`:
-1. Sube un archivo `.zip`, `.7z`, `.tar.gz` o `.tar` a la carpeta `zip/`.
-2. Opcionalmente, escribe el mensaje de commit deseado en `commit_message.txt`.
-3. Al hacer push o ejecutar `workflow_dispatch`, el action:
-   - Extrae el archivo automáticamente.
-   - Aplica `rsync` sobre la raíz del proyecto (excluyendo `.git` y `zip/`).
-   - Limpia el archivo procesado manteniendo `zip/.gitkeep`.
-   - Realiza un `--amend` y `git push --force` para mantener un historial limpio en un único commit.
+### 1. 🔄 Sincronización Automática vía Archivo ZIP (`sync-from-zip.yml`)
+- Sube un archivo comprimido (`.zip`, `.7z`, `.tar.gz`) a la carpeta `zip/`.
+- Opcionalmente, define el mensaje en `commit_message.txt`.
+- Extrae y sincroniza automáticamente todo el código con un commit limpio `--amend`.
+
+### 2. 🔨 Compilación Manual de APK Debug (`build-debug-apk.yml`)
+- **Activación 100% Manual**: Ve a la pestaña **Actions** en tu repositorio de GitHub > selecciona **Build Debug APK (Manual Trigger)** > pulsa **Run workflow**.
+- **Firma Automática en el Runner**: Genera o decodifica la llave `debug.keystore` al vuelo y firma el APK.
+- **Caché Inteligente de Gradle**: Utiliza caché de dependencias y wrappers para compilaciones ultrarrápidas.
+- **Descarga Directa en el Móvil**: Al finalizar, el archivo `GameBooster-Turbo-Debug-APK` queda disponible en la sección de **Artifacts** para descargarlo e instalarlo directamente en tu teléfono.
 
 ---
 
-## 🚀 Compilación y Generación de APK
+## 🚀 Compilación Local y Generación de APK
 
 Para compilar el proyecto en modo release para subirlo a Uptodown:
 

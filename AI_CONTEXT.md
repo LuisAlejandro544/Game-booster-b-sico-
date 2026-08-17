@@ -49,5 +49,6 @@ Este archivo proporciona contexto técnico para modelos de lenguaje (LLMs) y asi
 - Evitar operaciones de red o E/S en el hilo principal (`Dispatchers.Main`); usar siempre corrutinas con `Dispatchers.IO`.
 - No añadir librerías pesadas innecesarias que aumenten el peso del APK o ralenticen el dispositivo del usuario.
 
-### 5. Flujo de CI/CD y Sincronización ZIP
+### 5. Flujos de CI/CD y Compilación en la Nube
 - `.github/workflows/sync-from-zip.yml`: Automatización que procesa archivos comprimidos (`.zip`, `.7z`, `.tar.gz`) colocados en la carpeta `zip/`, los descomprime, sincroniza el código en la raíz del repositorio y actualiza el commit usando el contenido de `commit_message.txt` si está presente.
+- `.github/workflows/build-debug-apk.yml`: Compilación bajo demanda (`workflow_dispatch` 100% manual) en GitHub Actions para generar y firmar el APK de depuración con caché de Gradle, subiendo el APK como artefacto descargable.
