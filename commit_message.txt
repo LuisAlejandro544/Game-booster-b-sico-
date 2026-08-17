@@ -1,38 +1,23 @@
-feat(display): add 5-layer failsafe resolution and proportional DPI scaling per game
+feat(hud): add in-game resolution & DPI scaling with 15-second live test mode
 
-- Implement DisplayScaleController managing elevated wm size and wm density adjustments via Shizuku
-- Add 5-layer safety failsafe architecture:
-  1. Watchdog Daemon (Dead-Man's Switch): Detached shell script in /data/local/tmp with 35s timeout restoring factory display if app terminates
-  2. Persistent Panic Button: High-priority notification with immediate broadcast receiver (EmergencyResetReceiver)
-  3. Boot Recovery: Automatic rollback check in BootRecoveryReceiver if phone reboots
-  4. Safe Proportional Clamping: Even-pixel resolution rounding and proportional DPI to prevent touch desynchronization
-  5. Live 15-Second Test Mode: Interactive in-app countdown with auto-rollback if user does not confirm
-- Add resolution scaling selector (Native 100%, Balanced 85%, Performance 75%, Ultra Smooth 50%) to GameConfigSheet
-- Persist display scale profiles per game in BoosterPreferences and GameItem
-- Integrate display scale lifecycle hooks into GameWatcherService, GameBoostOrchestrator and BoosterViewModel
+- Add dedicated "Resolución" tab in floating In-Game Gamer HUD (HudResolutionTab.kt)
+- Support live switching between Native 100%, Balanced 85%, Performance 75%, and Ultra 50% resolution & DPI scales during gameplay
+- Implement 15-second interactive test mode directly inside HUD overlay with real-time countdown, Confirm, and Revert controls
+- Integrate display scaling actions in GameOverlayService and DraggableOverlayWindowManager backed by the 5-layer failsafe architecture
 
-fix(overlay): enable smooth free-dragging on HUD bubble & remove pulse scaling animation
+fix(auth): resolve Google Play Services login restriction and Shell administration block
 
-- Implement responsive touch drag gestures via Compose awaitEachGesture pointer input
-- Connect HUD drag delta to WindowManager layout params in DraggableOverlayWindowManager
-- Add header dragging support for the expanded gaming panel
-- Remove infinite pulse/scaling animation from FloatingGamerBubble for a clean and stable chip design
-- Ensure overlay position stays within device screen bounds
+- Ensure background app hibernation strictly protects all Google auth, login, and system packages (com.google.android.gms, com.google.android.gsf, com.android.vending, com.google.android.play.games)
+- Prevent accidental shell suspension (pm suspend) or process freezing (am set-inactive) on authentication frameworks
+- Add automatic system-wide recovery in MainActivity and BoosterViewModel to unsuspend and heal Google Play Services on app launch and resume
+- Guarantee smooth Google Play login across all games without "Managed by Shell" restrictions
 
-feat(catalog): require manual addition of games to gamer library with search & filter chips
+feat(resolution): implement real-time second-by-second toast countdown (15s..1s) for resolution testing
+- Create ResolutionCountdownNotifier for live ticking toasts (15, 14, 13, 12... down to 1s) with instant cancellation of previous toasts to prevent Android toast queues
+- Ensure notification feedback displays over full-screen games and works seamlessly during "Do Not Disturb" (No molestar) modes
+- Trigger automatic native restoration feedback and toast upon countdown expiration or explicit user cancellation
 
-- Stop auto-populating all installed games and apps into the Gamer Library
-- Require users to explicitly search and add their chosen games and apps via the "+ Añadir App" sheet
-- Add filter chips ("Todos", "Solo Juegos", "Otras Apps") in AppPickerSheet for fast game discovery
-- Display "AÑADIDO" visual badge and checkmark for applications already present in the user's library
-- Keep gamer library clean and personalized to user preferences
-
-feat(telemetry): add zero-allocation native C++ metrics and high-precision frametime stats
-
-- Implement zero-allocation POSIX open/read polling in native-lib.cpp for /proc/stat and kernel thermal zones to prevent Garbage Collector jank
-- Add high-precision CLOCK_MONOTONIC_RAW nanosecond frametime tracking in a 120-frame native ring buffer
-- Calculate real-time average frametime latency (ms/frame) and 1% Low / 0.1% Low FPS percentiles
-- Expose native frametime stats via NativeEngineBridge and connect to DeviceMetrics
-- Add zero-allocation frametime and 1% Low FPS cards into in-game HudTelemetryTab
-- Update documentation files (AI_CONTEXT.md, ROADMAP.md, STRUCTURE.md) to reflect native engine capabilities
-
+fix(overlay): eliminate floating HUD jitter and wobble during screen dragging
+- Refactor DraggableOverlayWindowManager to track absolute screen-space coordinates (rawX, rawY)
+- Implement zero-jitter pointer tracking in FloatingGamerBubble and ExpandedGamerPanel via pointerInteropFilter
+- Decouple window position updates from relative touch deltas to ensure silky smooth 60/120Hz gesture physics

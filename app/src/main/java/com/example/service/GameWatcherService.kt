@@ -119,7 +119,8 @@ class GameWatcherService : Service() {
                     context = this@GameWatcherService,
                     packageName = pkg,
                     gameTitle = targetGameTitle,
-                    driver = appliedDriver
+                    driver = appliedDriver,
+                    displayScale = appliedDisplayScale
                 )
             }
 

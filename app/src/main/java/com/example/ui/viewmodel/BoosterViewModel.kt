@@ -24,6 +24,7 @@ import com.example.ui.viewmodel.modules.GameCatalogManager
 import com.example.util.ShizukuManager
 import com.example.util.ShizukuStatus
 import com.example.util.shizuku.DisplayScaleController
+import com.example.util.shizuku.ResolutionCountdownNotifier
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -92,6 +93,19 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
         catalogManager.loadGames()
         telemetryManager.startPeriodicPolling(isBoostingProvider = { _isBoosting.value })
         telemetryManager.measurePing()
+        ensureGooglePlayServicesActive()
+    }
+
+    fun ensureGooglePlayServicesActive() {
+        viewModelScope.launch {
+            if (ShizukuManager.isAuthorized) {
+                // If not in an active game session requesting suspension, ensure Google services are un-suspended and active
+                if (_activeRunningBoostedGame.value == null) {
+                    ShizukuManager.restoreGooglePlayServices()
+                    prefs.setGoogleServicesSuspended(false)
+                }
+            }
+        }
     }
 
     override fun onCleared() {
@@ -192,11 +206,12 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
             resolutionTestJob = viewModelScope.launch {
                 for (sec in 15 downTo 1) {
                     _testCountdownSeconds.value = sec
+                    ResolutionCountdownNotifier.showCountdownTick(getApplication(), sec, scale)
                     delay(1000L)
                 }
                 // Time expired without user confirmation -> automatic rollback
                 cancelResolutionTest()
-                Toast.makeText(getApplication(), "⏱️ Tiempo agotado. Pantalla restaurada por seguridad.", Toast.LENGTH_LONG).show()
+                ResolutionCountdownNotifier.showReverted(getApplication())
             }
         }
     }
@@ -212,7 +227,9 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
 
         if (targetGame != null) {
             updateGameDisplayScale(targetGame, scale)
-            Toast.makeText(getApplication(), "✅ Escala ${scale.tag} confirmada y guardada para ${targetGame.title}", Toast.LENGTH_SHORT).show()
+            ResolutionCountdownNotifier.showConfirmed(getApplication(), scale)
+        } else {
+            ResolutionCountdownNotifier.showConfirmed(getApplication(), scale)
         }
 
         // Revert display back to native until game actually launches
@@ -228,6 +245,7 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
         resolutionTestJob?.cancel()
         _isTestingResolution.value = false
         _pendingTestScale.value = null
+        ResolutionCountdownNotifier.cancel()
 
         viewModelScope.launch {
             DisplayScaleController.resetDisplayScale(getApplication(), ShizukuManager.isAuthorized)
@@ -323,7 +341,8 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
                     context = context,
                     packageName = configuredGame?.packageName,
                     gameTitle = configuredGame?.title ?: "Juego Optimizado",
-                    driver = driverToApply
+                    driver = driverToApply,
+                    displayScale = scaleToApply
                 )
             } else {
                 requestOverlayPermission()

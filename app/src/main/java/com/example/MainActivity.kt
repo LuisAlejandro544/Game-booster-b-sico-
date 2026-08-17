@@ -36,5 +36,6 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         com.example.util.ShizukuManager.checkAndRefreshStatus()
         boosterViewModel.restoreSystemGraphicsIfActive()
+        boosterViewModel.ensureGooglePlayServicesActive()
     }
 }

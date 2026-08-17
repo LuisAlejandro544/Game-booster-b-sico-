@@ -55,6 +55,7 @@ Este documento detalla la organización de directorios, capas de arquitectura mo
 │   │   │   │   │   │       ├── FloatingGamerBubble.kt  # Burbuja flotante minimizada con animación de pulso
 │   │   │   │   │   │       ├── ExpandedGamerPanel.kt   # Panel gamer desplegable con pestañas y controles
 │   │   │   │   │   │       ├── HudTelemetryTab.kt      # Pestaña de FPS, SoC Temp y uso de RAM
+│   │   │   │   │   │       ├── HudResolutionTab.kt     # Pestaña de escala de resolución y DPI con test de 15s
 │   │   │   │   │   │       ├── HudDriversTab.kt        # Pestaña de cambio de motor gráfico al vuelo
 │   │   │   │   │   │       └── HudQuickBoostTab.kt     # Pestaña de Quick Boost instantáneo en partida
 │   │   │   │   │   ├── screens/
@@ -163,7 +164,7 @@ Este documento detalla la organización de directorios, capas de arquitectura mo
 4. **Capa de Presentación y HUD Flotante (`ui/components/overlay/` y `service/overlay/`)**:
    - `FloatingGamerBubble`: Burbuja flotante animada con contador de FPS, temperatura de SoC y acceso rápido al panel.
    - `ExpandedGamerPanel`: Panel expandible in-game con pestañas de telemetría, selector de drivers gráficos y botón Quick Boost.
-   - `HudTelemetryTab`, `HudDriversTab`, `HudQuickBoostTab`: Vistas modulares por pestaña con responsabilidad única.
+   - `HudTelemetryTab`, `HudResolutionTab`, `HudDriversTab`, `HudQuickBoostTab`: Vistas modulares por pestaña con responsabilidad única.
    - `GameOverlayHudView`: Punto de entrada que coordina el estado expandido/minimizado.
    - `DraggableOverlayWindowManager`: Controla la adición/remoción de la vista flotante en el `WindowManager`, `LayoutParams` (`TYPE_APPLICATION_OVERLAY`) y el cálculo de gestos táctiles de arrastre en pantalla.
    - `OverlayLifecycleOwner`: Suministra el ciclo de vida de Android (`LifecycleOwner`, `SavedStateRegistryOwner`, `ViewModelStoreOwner`) para renderizar componentes Jetpack Compose sobre el sistema.

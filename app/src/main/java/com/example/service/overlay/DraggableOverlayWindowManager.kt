@@ -22,6 +22,12 @@ class DraggableOverlayWindowManager(private val context: Context) {
     private lateinit var layoutParams: WindowManager.LayoutParams
     private var lifecycleOwner: OverlayLifecycleOwner? = null
 
+    // Absolute Screen-Space Dragging State (Zero-Jitter / Zero-Wobble)
+    private var dragStartRawX: Float = 0f
+    private var dragStartRawY: Float = 0f
+    private var dragStartWindowX: Int = 0
+    private var dragStartWindowY: Int = 0
+
     val isAttached: Boolean
         get() = overlayComposeView != null
 
@@ -51,6 +57,9 @@ class DraggableOverlayWindowManager(private val context: Context) {
             y = initialY
         }
 
+        dragStartWindowX = initialX
+        dragStartWindowY = initialY
+
         val owner = OverlayLifecycleOwner().apply {
             performRestore(null)
             handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
@@ -75,7 +84,49 @@ class DraggableOverlayWindowManager(private val context: Context) {
     }
 
     /**
-     * Smoothly repositions the overlay window by delta pixels on screen.
+     * Initializes a drag session using absolute screen coordinates (rawX, rawY).
+     */
+    fun onDragStart(rawX: Float, rawY: Float) {
+        dragStartRawX = rawX
+        dragStartRawY = rawY
+        dragStartWindowX = layoutParams.x
+        dragStartWindowY = layoutParams.y
+    }
+
+    /**
+     * Smoothly updates window position using absolute screen-space deltas,
+     * preventing any feedback jitter or wobble caused by relative window translation.
+     */
+    fun onDragMove(rawX: Float, rawY: Float) {
+        try {
+            val deltaX = rawX - dragStartRawX
+            val deltaY = rawY - dragStartRawY
+
+            val displayMetrics = context.resources.displayMetrics
+            val maxW = displayMetrics.widthPixels
+            val maxH = displayMetrics.heightPixels
+
+            layoutParams.x = (dragStartWindowX + deltaX.toInt()).coerceIn(-20, maxW - 40)
+            layoutParams.y = (dragStartWindowY + deltaY.toInt()).coerceIn(0, maxH - 80)
+
+            overlayComposeView?.let { view ->
+                windowManager.updateViewLayout(view, layoutParams)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error updating drag move", e)
+        }
+    }
+
+    /**
+     * Finalizes the current drag session.
+     */
+    fun onDragEnd() {
+        dragStartWindowX = layoutParams.x
+        dragStartWindowY = layoutParams.y
+    }
+
+    /**
+     * Fallback relative repositioning.
      */
     fun moveBy(deltaX: Float, deltaY: Float) {
         try {

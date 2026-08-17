@@ -1,9 +1,8 @@
 package com.example.ui.components.overlay
 
+import android.view.MotionEvent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,11 +20,17 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.pointerInteropFilter
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -41,13 +46,21 @@ import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
 import kotlin.math.hypot
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun FloatingGamerBubble(
     fps: Int,
     temp: Int,
     onBubbleClick: () -> Unit,
+    onDragStart: (Float, Float) -> Unit = { _, _ -> },
+    onDragMove: (Float, Float) -> Unit = { _, _ -> },
+    onDragEnd: () -> Unit = {},
     onDrag: (Float, Float) -> Unit = { _, _ -> }
 ) {
+    var touchDownRawX by remember { mutableFloatStateOf(0f) }
+    var touchDownRawY by remember { mutableFloatStateOf(0f) }
+    var isDragging by remember { mutableStateOf(false) }
+
     Card(
         modifier = Modifier
             .clip(RoundedCornerShape(24.dp))
@@ -56,43 +69,42 @@ fun FloatingGamerBubble(
                 Brush.horizontalGradient(listOf(NeonCyan, NeonPurple)),
                 RoundedCornerShape(24.dp)
             )
-            .pointerInput(Unit) {
-                awaitEachGesture {
-                    val down = awaitFirstDown(requireUnconsumed = false)
-                    var prevX = down.position.x
-                    var prevY = down.position.y
-                    var isDrag = false
-                    var totalDrag = 0f
-                    val touchSlop = viewConfiguration.touchSlop
-
-                    while (true) {
-                        val event = awaitPointerEvent()
-                        val current = event.changes.firstOrNull { it.id == down.id } ?: break
-
-                        if (!current.pressed) {
-                            // Finger lifted (UP)
-                            if (!isDrag) {
-                                onBubbleClick()
-                            }
-                            break
-                        }
-
-                        val dx = current.position.x - prevX
-                        val dy = current.position.y - prevY
-                        totalDrag += hypot(dx, dy)
-
-                        if (!isDrag && totalDrag > touchSlop) {
-                            isDrag = true
-                        }
-
-                        if (isDrag) {
-                            current.consume()
-                            onDrag(dx, dy)
-                        }
-
-                        prevX = current.position.x
-                        prevY = current.position.y
+            .pointerInteropFilter { motionEvent ->
+                when (motionEvent.actionMasked) {
+                    MotionEvent.ACTION_DOWN -> {
+                        touchDownRawX = motionEvent.rawX
+                        touchDownRawY = motionEvent.rawY
+                        isDragging = false
+                        onDragStart(motionEvent.rawX, motionEvent.rawY)
+                        true
                     }
+                    MotionEvent.ACTION_MOVE -> {
+                        val dist = hypot(motionEvent.rawX - touchDownRawX, motionEvent.rawY - touchDownRawY)
+                        if (!isDragging && dist > 16f) {
+                            isDragging = true
+                        }
+                        if (isDragging) {
+                            onDragMove(motionEvent.rawX, motionEvent.rawY)
+                        }
+                        true
+                    }
+                    MotionEvent.ACTION_UP -> {
+                        if (isDragging) {
+                            onDragEnd()
+                        } else {
+                            onBubbleClick()
+                        }
+                        isDragging = false
+                        true
+                    }
+                    MotionEvent.ACTION_CANCEL -> {
+                        if (isDragging) {
+                            onDragEnd()
+                        }
+                        isDragging = false
+                        true
+                    }
+                    else -> false
                 }
             }
             .testTag("floating_hud_bubble"),
