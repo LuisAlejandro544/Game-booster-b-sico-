@@ -25,12 +25,15 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Gamepad
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -41,6 +44,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -60,6 +64,7 @@ import com.example.ui.theme.GamerCardBorder
 import com.example.ui.theme.GamerDarkBackground
 import com.example.ui.theme.GamerSurfaceElevated
 import com.example.ui.theme.NeonCyan
+import com.example.ui.theme.NeonGreen
 import com.example.ui.theme.NeonPurple
 import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
@@ -69,20 +74,28 @@ import com.example.ui.theme.TextSecondary
 @Composable
 fun AppPickerSheet(
     installedApps: List<GameItem>,
+    addedPackageNames: Set<String> = emptySet(),
     onSelectApp: (GameItem) -> Unit,
     onDismiss: () -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
+    var filterType by remember { mutableIntStateOf(0) } // 0 = Todos, 1 = Juegos, 2 = Apps
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    val filteredApps = remember(searchQuery, installedApps) {
-        if (searchQuery.isBlank()) {
-            installedApps
-        } else {
-            installedApps.filter {
-                it.title.contains(searchQuery, ignoreCase = true) ||
-                        it.packageName.contains(searchQuery, ignoreCase = true)
+    val filteredApps = remember(searchQuery, filterType, installedApps) {
+        installedApps.filter { app ->
+            val matchesCategory = when (filterType) {
+                1 -> app.category == "Juego"
+                2 -> app.category != "Juego"
+                else -> true
             }
+            val matchesSearch = if (searchQuery.isBlank()) {
+                true
+            } else {
+                app.title.contains(searchQuery, ignoreCase = true) ||
+                        app.packageName.contains(searchQuery, ignoreCase = true)
+            }
+            matchesCategory && matchesSearch
         }
     }
 
@@ -122,7 +135,7 @@ fun AppPickerSheet(
                         color = TextPrimary
                     )
                     Text(
-                        text = "Selecciona una app instalada para optimizarla",
+                        text = "Selecciona las apps que quieres tener en tu biblioteca",
                         style = MaterialTheme.typography.bodySmall,
                         color = TextSecondary
                     )
@@ -146,7 +159,7 @@ fun AppPickerSheet(
                     .fillMaxWidth()
                     .testTag("app_search_input"),
                 placeholder = {
-                    Text("Buscar juego o app...", color = TextMuted, fontSize = 13.sp)
+                    Text("Buscar juego o app por nombre...", color = TextMuted, fontSize = 13.sp)
                 },
                 leadingIcon = {
                     Icon(Icons.Default.Search, contentDescription = null, tint = NeonCyan)
@@ -171,10 +184,45 @@ fun AppPickerSheet(
                 )
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Filter Chips
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                listOf("Todos", "Solo Juegos", "Otras Apps").forEachIndexed { index, label ->
+                    val isSelected = filterType == index
+                    FilterChip(
+                        selected = isSelected,
+                        onClick = { filterType = index },
+                        label = {
+                            Text(
+                                text = label,
+                                fontSize = 11.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                            )
+                        },
+                        colors = FilterChipDefaults.filterChipColors(
+                            containerColor = GamerCardBackground,
+                            labelColor = TextSecondary,
+                            selectedContainerColor = NeonCyan.copy(alpha = 0.2f),
+                            selectedLabelColor = NeonCyan
+                        ),
+                        border = FilterChipDefaults.filterChipBorder(
+                            borderColor = GamerCardBorder,
+                            selectedBorderColor = NeonCyan,
+                            enabled = true,
+                            selected = isSelected
+                        )
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
 
             Text(
-                text = "${filteredApps.size} aplicaciones encontradas",
+                text = "${filteredApps.size} aplicaciones disponibles",
                 style = MaterialTheme.typography.labelSmall,
                 color = TextMuted
             )
@@ -188,6 +236,7 @@ fun AppPickerSheet(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(filteredApps, key = { it.packageName }) { app ->
+                    val isAlreadyAdded = addedPackageNames.contains(app.packageName)
                     val bitmap = remember(app.iconDrawable) {
                         app.iconDrawable?.let { drawableToBitmap(it) }
                     }
@@ -196,7 +245,11 @@ fun AppPickerSheet(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
-                            .border(1.dp, GamerCardBorder, RoundedCornerShape(12.dp))
+                            .border(
+                                1.dp,
+                                if (isAlreadyAdded) NeonGreen.copy(alpha = 0.5f) else GamerCardBorder,
+                                RoundedCornerShape(12.dp)
+                            )
                             .clickable { onSelectApp(app) }
                             .testTag("app_row_${app.packageName}"),
                         colors = CardDefaults.cardColors(containerColor = GamerCardBackground),
@@ -253,19 +306,49 @@ fun AppPickerSheet(
                                 )
                             }
 
-                            Box(
-                                modifier = Modifier
-                                    .size(32.dp)
-                                    .clip(CircleShape)
-                                    .background(NeonCyan.copy(alpha = 0.15f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Add,
-                                    contentDescription = "Añadir",
-                                    tint = NeonCyan,
-                                    modifier = Modifier.size(16.dp)
-                                )
+                            if (isAlreadyAdded) {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(NeonGreen.copy(alpha = 0.15f))
+                                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = "Añadido",
+                                            tint = NeonGreen,
+                                            modifier = Modifier.size(12.dp)
+                                        )
+                                        Text(
+                                            text = "AÑADIDO",
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = NeonGreen
+                                            )
+                                        )
+                                    }
+                                }
+                            } else {
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .clip(CircleShape)
+                                        .background(NeonCyan.copy(alpha = 0.15f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Add,
+                                        contentDescription = "Añadir",
+                                        tint = NeonCyan,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
                             }
                         }
                     }

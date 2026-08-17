@@ -30,7 +30,8 @@ fun GameOverlayHudContent(
     onCloseOverlay: () -> Unit,
     onDriverSelected: (GraphicsDriver) -> Unit,
     onQuickBoost: () -> Unit,
-    feedbackMessage: String?
+    feedbackMessage: String?,
+    onDrag: (Float, Float) -> Unit = { _, _ -> }
 ) {
     Box(
         modifier = Modifier
@@ -42,7 +43,8 @@ fun GameOverlayHudContent(
             FloatingGamerBubble(
                 fps = currentFps,
                 temp = metrics.cpuTempCelsius.toInt(),
-                onBubbleClick = onToggleExpand
+                onBubbleClick = onToggleExpand,
+                onDrag = onDrag
             )
         } else {
             // Expanded In-Game Gaming Hub Panel
@@ -55,7 +57,8 @@ fun GameOverlayHudContent(
                 onClose = onCloseOverlay,
                 onDriverSelected = onDriverSelected,
                 onQuickBoost = onQuickBoost,
-                feedbackMessage = feedbackMessage
+                feedbackMessage = feedbackMessage,
+                onDrag = onDrag
             )
         }
     }

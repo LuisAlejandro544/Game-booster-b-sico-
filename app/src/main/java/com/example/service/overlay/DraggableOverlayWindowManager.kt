@@ -1,12 +1,10 @@
 package com.example.service.overlay
 
-import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.PixelFormat
 import android.os.Build
 import android.util.Log
 import android.view.Gravity
-import android.view.MotionEvent
 import android.view.WindowManager
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.ComposeView
@@ -14,7 +12,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.lifecycle.setViewTreeViewModelStoreOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
-import kotlin.math.abs
 
 /**
  * Manages the WindowManager lifecycle, layout params, and touch dragging for floating game overlays.
@@ -28,7 +25,6 @@ class DraggableOverlayWindowManager(private val context: Context) {
     val isAttached: Boolean
         get() = overlayComposeView != null
 
-    @SuppressLint("ClickableViewAccessibility")
     fun attachOverlay(
         initialX: Int = 30,
         initialY: Int = 180,
@@ -70,47 +66,31 @@ class DraggableOverlayWindowManager(private val context: Context) {
             setContent(content)
         }
 
-        var startX = 0
-        var startY = 0
-        var touchStartX = 0f
-        var touchStartY = 0f
-        var isMoving = false
-
-        composeView.setOnTouchListener { view, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    startX = layoutParams.x
-                    startY = layoutParams.y
-                    touchStartX = event.rawX
-                    touchStartY = event.rawY
-                    isMoving = false
-                    false
-                }
-                MotionEvent.ACTION_MOVE -> {
-                    val deltaX = (event.rawX - touchStartX).toInt()
-                    val deltaY = (event.rawY - touchStartY).toInt()
-                    if (abs(deltaX) > 10 || abs(deltaY) > 10) {
-                        isMoving = true
-                        layoutParams.x = startX + deltaX
-                        layoutParams.y = startY + deltaY
-                        try {
-                            windowManager.updateViewLayout(view, layoutParams)
-                        } catch (_: Exception) {}
-                    }
-                    isMoving
-                }
-                MotionEvent.ACTION_UP -> {
-                    isMoving
-                }
-                else -> false
-            }
-        }
-
         try {
             windowManager.addView(composeView, layoutParams)
             overlayComposeView = composeView
         } catch (e: Exception) {
             Log.e(TAG, "Error adding overlay view to WindowManager", e)
+        }
+    }
+
+    /**
+     * Smoothly repositions the overlay window by delta pixels on screen.
+     */
+    fun moveBy(deltaX: Float, deltaY: Float) {
+        try {
+            val displayMetrics = context.resources.displayMetrics
+            val maxW = displayMetrics.widthPixels
+            val maxH = displayMetrics.heightPixels
+
+            layoutParams.x = (layoutParams.x + deltaX.toInt()).coerceIn(-20, maxW - 40)
+            layoutParams.y = (layoutParams.y + deltaY.toInt()).coerceIn(0, maxH - 80)
+
+            overlayComposeView?.let { view ->
+                windowManager.updateViewLayout(view, layoutParams)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error moving overlay view", e)
         }
     }
 

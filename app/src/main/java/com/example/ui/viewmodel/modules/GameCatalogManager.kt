@@ -2,6 +2,7 @@ package com.example.ui.viewmodel.modules
 
 import android.content.Context
 import com.example.data.BoosterPreferences
+import com.example.model.DisplayResolutionScale
 import com.example.model.GameItem
 import com.example.model.GraphicsDriver
 import com.example.util.SystemInfoHelper
@@ -31,19 +32,22 @@ class GameCatalogManager(
             val addedPackages = prefs.getAddedGamePackages()
             val list = mutableListOf<GameItem>()
 
-            // Auto-detect installed games + user manually added apps
+            // Only show games and apps explicitly added by the user
             for (app in installed) {
-                if (addedPackages.contains(app.packageName) || app.category == "Juego") {
+                if (addedPackages.contains(app.packageName)) {
                     val savedDriver = prefs.getGameDriver(app.packageName)
+                    val savedScale = prefs.getGameDisplayScale(app.packageName)
                     val deepHib = prefs.getGameDeepHibernate(app.packageName)
                     val hibGoogle = prefs.getGameHibernateGoogle(app.packageName)
                     val overlayHud = prefs.getGameOverlayHud(app.packageName)
                     list.add(
                         app.copy(
                             graphicsDriver = savedDriver,
+                            displayScale = savedScale,
                             deepBackgroundHibernate = deepHib,
                             hibernateGoogleServices = hibGoogle,
-                            enableOverlayHud = overlayHud
+                            enableOverlayHud = overlayHud,
+                            isCustomAdded = true
                         )
                     )
                 }
@@ -66,17 +70,20 @@ class GameCatalogManager(
     fun saveGameConfiguration(
         game: GameItem,
         driver: GraphicsDriver,
+        displayScale: DisplayResolutionScale,
         deepHibernate: Boolean,
         hibernateGoogle: Boolean,
         enableOverlayHud: Boolean
     ): GameItem {
         prefs.setGameDriver(game.packageName, driver)
+        prefs.setGameDisplayScale(game.packageName, displayScale)
         prefs.setGameDeepHibernate(game.packageName, deepHibernate)
         prefs.setGameHibernateGoogle(game.packageName, hibernateGoogle)
         prefs.setGameOverlayHud(game.packageName, enableOverlayHud)
 
         val updatedGame = game.copy(
             graphicsDriver = driver,
+            displayScale = displayScale,
             deepBackgroundHibernate = deepHibernate,
             hibernateGoogleServices = hibernateGoogle,
             enableOverlayHud = enableOverlayHud
@@ -92,6 +99,15 @@ class GameCatalogManager(
     fun updateGameDriver(game: GameItem, driver: GraphicsDriver): GameItem {
         prefs.setGameDriver(game.packageName, driver)
         val updated = game.copy(graphicsDriver = driver)
+        _gamesList.value = _gamesList.value.map {
+            if (it.packageName == game.packageName) updated else it
+        }
+        return updated
+    }
+
+    fun updateGameDisplayScale(game: GameItem, scale: DisplayResolutionScale): GameItem {
+        prefs.setGameDisplayScale(game.packageName, scale)
+        val updated = game.copy(displayScale = scale)
         _gamesList.value = _gamesList.value.map {
             if (it.packageName == game.packageName) updated else it
         }

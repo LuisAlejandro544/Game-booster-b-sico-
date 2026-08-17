@@ -5,6 +5,7 @@ import com.example.data.BoosterPreferences
 import com.example.model.BoostProfile
 import com.example.model.BoostResult
 import com.example.model.DeviceMetrics
+import com.example.model.DisplayResolutionScale
 import com.example.model.GameItem
 import com.example.model.GraphicsDriver
 import com.example.service.GameWatcherService
@@ -31,6 +32,7 @@ class GameBoostOrchestrator(
     suspend fun executeBoostPipeline(
         targetGame: GameItem?,
         forcedDriver: GraphicsDriver?,
+        forcedDisplayScale: DisplayResolutionScale? = null,
         deepHibernate: Boolean?,
         hibernateGoogle: Boolean?,
         enableOverlayHud: Boolean?,
@@ -42,6 +44,9 @@ class GameBoostOrchestrator(
         val driverToApply = forcedDriver
             ?: targetGame?.let { prefs.getGameDriver(it.packageName) }
             ?: GraphicsDriver.SYSTEM_DEFAULT
+        val scaleToApply = forcedDisplayScale
+            ?: targetGame?.let { prefs.getGameDisplayScale(it.packageName) }
+            ?: DisplayResolutionScale.NATIVE_100
         val useDeepHib = deepHibernate
             ?: targetGame?.let { prefs.getGameDeepHibernate(it.packageName) }
             ?: true
@@ -54,6 +59,7 @@ class GameBoostOrchestrator(
 
         val configuredGame = targetGame?.copy(
             graphicsDriver = driverToApply,
+            displayScale = scaleToApply,
             deepBackgroundHibernate = useDeepHib,
             hibernateGoogleServices = useGoogleHib,
             enableOverlayHud = useOverlay
@@ -66,10 +72,10 @@ class GameBoostOrchestrator(
         val steps = if (isShizukuReady) {
             listOf(
                 "Conectando con Shizuku (ADB / Root)..." to 0.15f,
-                "Iniciando centinela de hibernación en juego..." to 0.35f,
+                "Iniciando centinela de hibernación y failsafe de pantalla..." to 0.35f,
                 "Purgando caché del sistema (pm trim-caches)..." to 0.50f,
                 "Forzando motor de renderizado (${driverToApply.tag})..." to 0.70f,
-                "Optimizando subprocesos en segundo plano..." to 0.85f,
+                (if (scaleToApply != DisplayResolutionScale.NATIVE_100) "Ajustando escala de resolución (${scaleToApply.tag})..." else "Optimizando subprocesos en segundo plano...") to 0.85f,
                 "Estabilizando latencia y búfer de red..." to 0.95f,
                 "¡Optimización Elevada Completada!" to 1.0f
             )
@@ -114,6 +120,9 @@ class GameBoostOrchestrator(
                 )
                 allLogs.addAll(driverLogs)
 
+                if (scaleToApply != DisplayResolutionScale.NATIVE_100) {
+                    allLogs.add("📱 Escala gráfica activada: ${scaleToApply.title} (5 Capas Failsafe)")
+                }
                 if (useDeepHib) {
                     allLogs.add("❄️ Centinela activo: Hibernando apps secundarias en juego")
                 }
@@ -134,7 +143,8 @@ class GameBoostOrchestrator(
                 gameTitle = configuredGame.title,
                 driver = driverToApply,
                 hibernateGoogle = useGoogleHib,
-                deepHibernate = useDeepHib
+                deepHibernate = useDeepHib,
+                displayScale = scaleToApply
             )
         }
 
@@ -165,6 +175,7 @@ class GameBoostOrchestrator(
             durationMs = 2200,
             isElevatedShizuku = isShizukuReady,
             appliedDriver = driverToApply,
+            appliedDisplayScale = scaleToApply,
             shizukuLogs = allLogs
         )
 

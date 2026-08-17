@@ -22,18 +22,24 @@ Este archivo proporciona contexto técnico para modelos de lenguaje (LLMs) y asi
   - `pm trim-caches <size>`: Purga cachés del sistema para liberar almacenamiento y memoria.
   - `cmd game mode 2 <package>`: Activa el Modo Rendimiento del sistema en Android 12+ (API 31+).
   - Inyección de renderizado GPU: `settings put global updatable_driver_production_opt_in_apps <pkg>` (Vulkan Game Driver) y `settings put global angle_gl_driver_selection_pkgs <pkg>` (ANGLE OpenGL sobre Vulkan).
+  - Escalado de Resolución y DPI (`DisplayScaleController`): Modificación dinámica con `wm size` y `wm density` protegida con failsafe de 5 capas:
+    1. *Watchdog Daemon (Dead-Man's switch 35s)*: Script desvinculado en `/data/local/tmp` que restaura resolución física si el proceso muere.
+    2. *Botón de Pánico permanente*: Notificación persistente con acción directa `EmergencyResetReceiver`.
+    3. *Boot Recovery*: Rollback automático en `BootRecoveryReceiver` ante reinicios.
+    4. *Cálculo Par y Proporcional*: Píxeles pares y DPI ajustados para evitar desincronización táctil.
+    5. *Prueba de 15 Segundos*: Cuenta atrás interactiva con rollback automático si no se valida.
   - Hibernación en Vivo: `am set-inactive <pkg> true` y `pm suspend <pkg>` para dormir apps secundarias mientras se juega.
   - Suspensión temporal de Google Play Services: `pm suspend com.google.android.gms` (+350MB-600MB de RAM libre durante la partida).
-- **Centinela en Primer Plano (`GameWatcherService`)**: Monitorea con `dumpsys activity` / `cmd activity` si el juego sigue en pantalla. Cuando el usuario sale del juego, el servicio restaura instantáneamente la configuración normal de Android (`pm unsuspend`, `settings delete/put`, `am set-inactive false`).
+- **Centinela en Primer Plano (`GameWatcherService`)**: Monitorea con `dumpsys activity` / `cmd activity` si el juego sigue en pantalla. Cuando el usuario sale del juego, el servicio restaura instantáneamente la configuración normal de Android (resolución, densidad, `pm unsuspend`, `settings delete/put`, `am set-inactive false`).
 - **HUD Flotante Gamer (`GameOverlayService` & `GameOverlayHudView`)**: Servicio `SYSTEM_ALERT_WINDOW` con un ciclo de vida `ComposeView` sobre `WindowManager`. Muestra una burbuja flotante arrastrable con contador de FPS dinámico vía `Choreographer.FrameCallback`, temperatura de SoC y RAM en tiempo real, así como un panel desplegable con selector al vuelo de motores gráficos (Vulkan, ANGLE, OpenGL) y botón de Quick Boost.
-- **Fail-Safe de Arranque (`BootRecoveryReceiver`)**: Restaura drivers y servicios automáticamente si el teléfono se reinicia inesperadamente.
+- **Fail-Safe de Arranque (`BootRecoveryReceiver`)**: Restaura drivers, resolución/DPI de pantalla y servicios de Google automáticamente si el teléfono se reinicia inesperadamente.
 - **Regla Estricta de Seguridad**: NUNCA usar propiedades `persist.sys.*` para evitar modificar valores persistentes del firmware del usuario.
 - **Aislamiento y Reversión**: Los cambios gráficos son por paquete y se revierten automáticamente al salir del juego o regresar a la aplicación.
 - **Nunca asumir que Shizuku siempre está disponible**: Siempre verificar `ShizukuState.AUTHORIZED` antes de ejecutar comandos Shell y proveer caminos de fallback seguros en Kotlin.
 
 ### 2. Telemetría Real y Capas Nativas (C++ y Rust)
-- **Cálculo Exacto de CPU**: Se calcula en tiempo real a nivel de kernel mediante delta de `/proc/stat` implementado en `native-lib.cpp` con fallback en Kotlin puro.
-- **Temperatura del SoC**: Se lee de los nodos `/sys/class/thermal/thermal_zone*` para reportar la temperatura real del procesador.
+- **Telemetría Zero-Alloc (Zero Garbage Collection Jank)**: Implementada en `native-lib.cpp` mediante llamadas POSIX `open()` y `read()` directamente sobre buffers en pila (stack buffers) para `/proc/stat` y `/sys/class/thermal/thermal_zone*`. Esto evita crear objetos `String` temporales que activen el Garbage Collector de Android en segundo plano durante partidas.
+- **Cálculo de Frametimes de Alta Precisión y Percentiles 1% Low**: Registro en ring-buffer nativo de 120 fotogramas con marcas de tiempo en nanosegundos (`CLOCK_MONOTONIC_RAW`) calculando latencia media por fotograma, percentil 99th (1% Low FPS) y 99.9th (0.1% Low FPS).
 - Las capas nativas en `app/src/main/cpp` y `app/src/main/rust` están diseñadas con wrappers Kotlin (`NativeEngineBridge.kt` y `RustCoreBridge.kt`) que incluyen manejo de excepciones `UnsatisfiedLinkError` y lógica de respaldo en Kotlin puro para no romper la ejecución de la app si las librerías `.so` no están compiladas.
 
 ### 3. UI y Estilo (Jetpack Compose & M3)

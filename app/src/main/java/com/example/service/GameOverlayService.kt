@@ -141,7 +141,10 @@ class GameOverlayService : Service() {
                         applyDriverInGame(newDriver)
                     },
                     onQuickBoost = { executeInGameQuickBoost() },
-                    feedbackMessage = feedbackMessage
+                    feedbackMessage = feedbackMessage,
+                    onDrag = { dx, dy ->
+                        overlayWindowManager.moveBy(dx, dy)
+                    }
                 )
             }
         }

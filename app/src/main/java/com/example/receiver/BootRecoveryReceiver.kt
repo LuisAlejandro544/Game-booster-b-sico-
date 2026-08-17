@@ -6,6 +6,7 @@ import android.content.Intent
 import android.util.Log
 import com.example.data.BoosterPreferences
 import com.example.util.ShizukuManager
+import com.example.util.shizuku.DisplayScaleController
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -20,8 +21,9 @@ class BootRecoveryReceiver : BroadcastReceiver() {
 
             val activePkg = prefs.getActiveBoostedPackage()
             val gmsSuspended = prefs.isGoogleServicesSuspended()
+            val customScaleActive = prefs.isCustomDisplayScaleActive()
 
-            if (activePkg != null || gmsSuspended) {
+            if (activePkg != null || gmsSuspended || customScaleActive) {
                 CoroutineScope(Dispatchers.IO).launch {
                     try {
                         if (activePkg != null) {
@@ -30,6 +32,9 @@ class BootRecoveryReceiver : BroadcastReceiver() {
                         if (gmsSuspended) {
                             ShizukuManager.restoreGooglePlayServices()
                             prefs.setGoogleServicesSuspended(false)
+                        }
+                        if (customScaleActive) {
+                            DisplayScaleController.resetDisplayScale(context)
                         }
                         prefs.setActiveBoostedPackage(null)
                         Log.d(TAG, "Fail-safe recovery successfully restored system settings.")

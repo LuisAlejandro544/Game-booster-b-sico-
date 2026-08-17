@@ -26,17 +26,22 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AspectRatio
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Bedtime
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Gamepad
 import androidx.compose.material.icons.filled.HourglassEmpty
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.RocketLaunch
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.SettingsSuggest
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -70,12 +75,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.model.DisplayResolutionScale
 import com.example.model.GameItem
 import com.example.model.GraphicsDriver
 import com.example.ui.theme.GamerCardBackground
 import com.example.ui.theme.GamerCardBorder
 import com.example.ui.theme.GamerDarkBackground
 import com.example.ui.theme.GamerSurfaceElevated
+import com.example.ui.theme.NeonAmber
 import com.example.ui.theme.NeonCyan
 import com.example.ui.theme.NeonGreen
 import com.example.ui.theme.NeonPurple
@@ -87,14 +94,22 @@ import com.example.ui.theme.TextSecondary
 @Composable
 fun GameConfigSheet(
     game: GameItem,
+    isShizukuAuthorized: Boolean,
+    isTestingResolution: Boolean,
+    testCountdownSeconds: Int,
     onDriverSelected: (GraphicsDriver) -> Unit,
-    onSaveConfig: (GraphicsDriver, Boolean, Boolean, Boolean) -> Unit,
-    onBoostAndLaunch: (GameItem, GraphicsDriver, Boolean, Boolean, Boolean) -> Unit,
+    onScaleSelected: (DisplayResolutionScale) -> Unit,
+    onTestScale: (DisplayResolutionScale) -> Unit,
+    onConfirmTest: (GameItem) -> Unit,
+    onCancelTest: () -> Unit,
+    onSaveConfig: (GraphicsDriver, DisplayResolutionScale, Boolean, Boolean, Boolean) -> Unit,
+    onBoostAndLaunch: (GameItem, GraphicsDriver, DisplayResolutionScale, Boolean, Boolean, Boolean) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var selectedDriver by remember(game) { mutableStateOf(game.graphicsDriver) }
+    var selectedScale by remember(game) { mutableStateOf(game.displayScale) }
     var deepHibernate by remember(game) { mutableStateOf(game.deepBackgroundHibernate) }
     var hibernateGoogle by remember(game) { mutableStateOf(game.hibernateGoogleServices) }
     var enableOverlayHud by remember(game) { mutableStateOf(game.enableOverlayHud) }
@@ -124,70 +139,21 @@ fun GameConfigSheet(
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Tune,
-                        contentDescription = null,
-                        tint = NeonCyan,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Text(
-                        text = "AJUSTES DEL JUEGO",
-                        style = MaterialTheme.typography.titleSmall.copy(
-                            fontWeight = FontWeight.Black,
-                            letterSpacing = 1.sp
-                        ),
-                        color = TextPrimary
-                    )
-                }
-
-                IconButton(
-                    onClick = onDismiss,
-                    modifier = Modifier
-                        .size(32.dp)
-                        .clip(CircleShape)
-                        .background(GamerSurfaceElevated)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Cerrar",
-                        tint = TextSecondary,
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Game Identity Card
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(14.dp))
-                    .border(1.dp, GamerCardBorder, RoundedCornerShape(14.dp)),
-                colors = CardDefaults.cardColors(containerColor = GamerCardBackground)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     if (bitmap != null) {
                         Image(
                             bitmap = bitmap.asImageBitmap(),
                             contentDescription = game.title,
                             modifier = Modifier
-                                .size(50.dp)
-                                .clip(RoundedCornerShape(12.dp))
+                                .size(44.dp)
+                                .clip(RoundedCornerShape(10.dp))
                         )
                     } else {
                         Box(
                             modifier = Modifier
-                                .size(50.dp)
-                                .clip(RoundedCornerShape(12.dp))
+                                .size(44.dp)
+                                .clip(RoundedCornerShape(10.dp))
                                 .background(GamerSurfaceElevated),
                             contentAlignment = Alignment.Center
                         ) {
@@ -195,88 +161,140 @@ fun GameConfigSheet(
                                 imageVector = Icons.Default.Gamepad,
                                 contentDescription = null,
                                 tint = NeonCyan,
-                                modifier = Modifier.size(28.dp)
+                                modifier = Modifier.size(24.dp)
                             )
                         }
                     }
 
-                    Column(modifier = Modifier.weight(1f)) {
+                    Column {
                         Text(
                             text = game.title,
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            color = TextPrimary,
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Black,
+                                color = TextPrimary
+                            ),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
                         Text(
-                            text = game.packageName,
-                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                            color = TextMuted,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            text = "Ajustes de Rendimiento y Failsafe",
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                color = NeonCyan,
+                                fontSize = 11.sp
+                            )
                         )
-                        Spacer(modifier = Modifier.height(4.dp))
+                    }
+                }
+
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.testTag("close_config_sheet_button")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Cerrar",
+                        tint = TextSecondary
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Active Countdown Banner during live testing
+            if (isTestingResolution) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .border(1.dp, NeonAmber, RoundedCornerShape(12.dp)),
+                    colors = CardDefaults.cardColors(containerColor = GamerSurfaceElevated)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
                         Row(
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(NeonPurple.copy(alpha = 0.2f))
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                            ) {
-                                Text(
-                                    text = game.category.uppercase(),
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontSize = 9.sp,
-                                        fontWeight = FontWeight.Bold
-                                    ),
-                                    color = NeonPurple
+                            Icon(
+                                imageVector = Icons.Default.Timer,
+                                contentDescription = null,
+                                tint = NeonAmber,
+                                modifier = Modifier.size(22.dp)
+                            )
+                            Text(
+                                text = "Probando Resolución: Auto-revert en ${testCountdownSeconds}s",
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = NeonAmber
                                 )
+                            )
+                        }
+
+                        Text(
+                            text = "¿La pantalla se ve correcta y responde bien al tacto? Si no confirmas, volverá automáticamente a 100% nativo.",
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                fontSize = 11.sp,
+                                color = TextSecondary
+                            )
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = onCancelTest,
+                                modifier = Modifier.weight(1f).height(40.dp),
+                                shape = RoundedCornerShape(8.dp),
+                                border = BorderStroke(1.dp, GamerCardBorder),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary)
+                            ) {
+                                Text("Revertir Ahora", fontSize = 12.sp)
                             }
 
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(NeonCyan.copy(alpha = 0.2f))
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            Button(
+                                onClick = { onConfirmTest(game) },
+                                modifier = Modifier.weight(1f).height(40.dp),
+                                shape = RoundedCornerShape(8.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = NeonGreen, contentColor = GamerDarkBackground)
                             ) {
-                                Text(
-                                    text = selectedDriver.tag,
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontSize = 9.sp,
-                                        fontWeight = FontWeight.Bold
-                                    ),
-                                    color = NeonCyan
-                                )
+                                Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Confirmar", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
                 }
+                Spacer(modifier = Modifier.height(14.dp))
             }
 
-            Spacer(modifier = Modifier.height(18.dp))
+            // Section 1: Graphics Driver Injection
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.SettingsSuggest,
+                    contentDescription = null,
+                    tint = NeonCyan,
+                    modifier = Modifier.size(18.dp)
+                )
+                Text(
+                    text = "CONTROLADOR DE RENDERIZADO GPU",
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = NeonCyan,
+                        letterSpacing = 0.5.sp
+                    )
+                )
+            }
 
-            // Section: Graphics Rendering
-            Text(
-                text = "MOTOR DE RENDERIZADO (GPU)",
-                style = MaterialTheme.typography.labelSmall.copy(
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 0.8.sp
-                ),
-                color = TextSecondary
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "Elige el controlador de gráficos para forzar el pipeline exclusivo de este juego:",
-                style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                color = TextMuted
-            )
+            Spacer(modifier = Modifier.height(8.dp))
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Driver Options
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 GraphicsDriver.values().forEach { driver ->
                     DriverOptionCard(
@@ -292,32 +310,140 @@ fun GameConfigSheet(
 
             Spacer(modifier = Modifier.height(18.dp))
 
-            // Section: Hibernation & Background Process Management
-            Text(
-                text = "HIBERNACIÓN DE PROCESOS (MIENTRAS JUEGAS)",
-                style = MaterialTheme.typography.labelSmall.copy(
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 0.8.sp
-                ),
-                color = TextSecondary
-            )
+            // Section 2: Screen Resolution & Proportional DPI Scaling
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.AspectRatio,
+                    contentDescription = null,
+                    tint = NeonPurple,
+                    modifier = Modifier.size(18.dp)
+                )
+                Text(
+                    text = "ESCALA DE RESOLUCIÓN & DPI (FAILSAFE 5 CAPAS)",
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = NeonPurple,
+                        letterSpacing = 0.5.sp
+                    )
+                )
+            }
+
             Spacer(modifier = Modifier.height(4.dp))
+
             Text(
-                text = "Congela temporalmente procesos en segundo plano para dedicar el 100% de la RAM y CPU al juego:",
-                style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                color = TextMuted
+                text = "Reduce la carga de renderizado del GPU hasta un 75% manteniendo los DPI calibrados proporcionalmente para que los botones mantengan su tamaño táctil original.",
+                style = MaterialTheme.typography.bodySmall.copy(
+                    fontSize = 11.sp,
+                    color = TextSecondary,
+                    lineHeight = 14.sp
+                )
             )
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // Switch 1: Deep Background Apps Hibernation
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                DisplayResolutionScale.values().forEach { scale ->
+                    ResolutionScaleOptionCard(
+                        scale = scale,
+                        isSelected = selectedScale == scale,
+                        isShizukuAuthorized = isShizukuAuthorized,
+                        onSelect = {
+                            selectedScale = scale
+                            onScaleSelected(scale)
+                        },
+                        onTest = {
+                            onTestScale(scale)
+                        }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // 5-Layer Safety Architecture Info Card
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .border(1.dp, NeonGreen.copy(alpha = 0.4f), RoundedCornerShape(10.dp)),
+                colors = CardDefaults.cardColors(containerColor = GamerSurfaceElevated)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Security,
+                            contentDescription = null,
+                            tint = NeonGreen,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Text(
+                            text = "Arquitectura de Seguridad en 5 Capas",
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = NeonGreen
+                            )
+                        )
+                    }
+
+                    Text(
+                        text = "• 1. Watchdog Daemon: Proceso shell independiente con timeout de 35s.\n" +
+                               "• 2. Botón de Pánico: Notificación persistente con acción directa.\n" +
+                               "• 3. Boot Recovery: Restablecimiento garantizado si el teléfono se apaga.\n" +
+                               "• 4. Clamping Seguro: Resolución par y DPI proporcional (sin descalibración).\n" +
+                               "• 5. Test de 15 Segundos: Prueba en vivo con auto-revert si no confirmas.",
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontSize = 10.sp,
+                            color = TextSecondary,
+                            lineHeight = 14.sp
+                        )
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            // Section 3: Hibernation and Overlay options
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Tune,
+                    contentDescription = null,
+                    tint = NeonGreen,
+                    modifier = Modifier.size(18.dp)
+                )
+                Text(
+                    text = "OPCIONES AVANZADAS DE OPTIMIZACIÓN",
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = NeonGreen,
+                        letterSpacing = 0.5.sp
+                    )
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Switch 1: Deep Background Hibernation
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(10.dp))
                     .border(
                         1.dp,
-                        if (deepHibernate) NeonCyan.copy(alpha = 0.5f) else GamerCardBorder,
+                        if (deepHibernate) NeonCyan.copy(alpha = 0.6f) else GamerCardBorder,
                         RoundedCornerShape(10.dp)
                     )
                     .clickable { deepHibernate = !deepHibernate },
@@ -340,7 +466,7 @@ fun GameConfigSheet(
                     )
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Hibernar Apps en Segundo Plano",
+                            text = "Centinela de Hibernación en Juego",
                             style = MaterialTheme.typography.labelMedium.copy(
                                 fontWeight = FontWeight.Bold,
                                 color = TextPrimary
@@ -527,54 +653,6 @@ fun GameConfigSheet(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Auto-revert safety notice
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(10.dp))
-                    .border(1.dp, NeonCyan.copy(alpha = 0.3f), RoundedCornerShape(10.dp)),
-                colors = CardDefaults.cardColors(
-                    containerColor = GamerSurfaceElevated.copy(alpha = 0.6f)
-                )
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalAlignment = Alignment.Top
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Security,
-                        contentDescription = null,
-                        tint = NeonGreen,
-                        modifier = Modifier
-                            .size(20.dp)
-                            .padding(top = 2.dp)
-                    )
-                    Column {
-                        Text(
-                            text = "Aislamiento Seguro y Reversión Automática en Vivo",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontWeight = FontWeight.Bold,
-                                color = TextPrimary
-                            )
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = "Un centinela en segundo plano monitorea tu partida. En cuanto salgas del juego o minimices la pantalla, el sistema Android restaura de inmediato los controladores, servicios de Google y procesos en segundo plano a su estado original de fábrica.",
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                fontSize = 11.sp,
-                                color = TextSecondary,
-                                lineHeight = 15.sp
-                            )
-                        )
-                    }
-                }
-            }
-
             Spacer(modifier = Modifier.height(20.dp))
 
             // Action Buttons
@@ -584,7 +662,7 @@ fun GameConfigSheet(
             ) {
                 OutlinedButton(
                     onClick = {
-                        onSaveConfig(selectedDriver, deepHibernate, hibernateGoogle, enableOverlayHud)
+                        onSaveConfig(selectedDriver, selectedScale, deepHibernate, hibernateGoogle, enableOverlayHud)
                         onDismiss()
                     },
                     shape = RoundedCornerShape(10.dp),
@@ -603,7 +681,7 @@ fun GameConfigSheet(
 
                 Button(
                     onClick = {
-                        onBoostAndLaunch(game, selectedDriver, deepHibernate, hibernateGoogle, enableOverlayHud)
+                        onBoostAndLaunch(game, selectedDriver, selectedScale, deepHibernate, hibernateGoogle, enableOverlayHud)
                     },
                     shape = RoundedCornerShape(10.dp),
                     colors = ButtonDefaults.buttonColors(
@@ -723,6 +801,116 @@ private fun DriverOptionCard(
                             lineHeight = 13.sp
                         )
                     )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ResolutionScaleOptionCard(
+    scale: DisplayResolutionScale,
+    isSelected: Boolean,
+    isShizukuAuthorized: Boolean,
+    onSelect: () -> Unit,
+    onTest: () -> Unit
+) {
+    val borderColor = if (isSelected) NeonPurple else GamerCardBorder
+    val backgroundColor = if (isSelected) GamerSurfaceElevated else GamerCardBackground
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .border(1.dp, borderColor, RoundedCornerShape(10.dp))
+            .clickable(onClick = onSelect)
+            .testTag("scale_option_${scale.id}"),
+        colors = CardDefaults.cardColors(containerColor = backgroundColor),
+        shape = RoundedCornerShape(10.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            RadioButton(
+                selected = isSelected,
+                onClick = onSelect,
+                colors = RadioButtonDefaults.colors(
+                    selectedColor = NeonPurple,
+                    unselectedColor = TextMuted
+                ),
+                modifier = Modifier.size(20.dp)
+            )
+
+            Column(modifier = Modifier.weight(1f)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = scale.title,
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = if (isSelected) TextPrimary else TextSecondary
+                        )
+                    )
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(
+                                if (isSelected) NeonPurple.copy(alpha = 0.25f) else GamerSurfaceElevated
+                            )
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = scale.tag,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isSelected) NeonPurple else TextMuted
+                            )
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(2.dp))
+
+                Text(
+                    text = scale.subtitle,
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        fontSize = 11.sp,
+                        color = if (isSelected) TextSecondary else TextMuted
+                    )
+                )
+
+                if (isSelected) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = scale.performanceImpact,
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontSize = 10.sp,
+                            color = NeonPurple.copy(alpha = 0.85f),
+                            lineHeight = 13.sp
+                        )
+                    )
+
+                    if (scale != DisplayResolutionScale.NATIVE_100 && isShizukuAuthorized) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedButton(
+                            onClick = onTest,
+                            modifier = Modifier.height(34.dp),
+                            shape = RoundedCornerShape(6.dp),
+                            border = BorderStroke(1.dp, NeonPurple),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = NeonPurple)
+                        ) {
+                            Icon(Icons.Default.Timer, contentDescription = null, modifier = Modifier.size(14.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Probar 15 Segundos en Vivo", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
                 }
             }
         }

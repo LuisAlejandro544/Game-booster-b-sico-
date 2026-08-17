@@ -19,6 +19,8 @@ data class DeviceMetrics(
     val cpuCores: Int = 8,
     val deviceModel: String = "Android Device",
     val refreshRateHz: Int = 60,
+    val avgFrametimeMs: Float = 16.6f,
+    val onePercentLowFps: Float = 58.0f,
     val isOptimized: Boolean = false,
     val lastOptimizedTime: String = "No optimizado aún"
 )

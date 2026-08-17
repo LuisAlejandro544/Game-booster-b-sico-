@@ -25,11 +25,13 @@ Este documento detalla la organización de directorios, capas de arquitectura mo
 │   │   │   │   │   └── BoosterPreferences.kt# SharedPreferences / ajustes del usuario
 │   │   │   │   ├── model/                   # Modelos de datos
 │   │   │   │   │   ├── DeviceMetrics.kt     # Métricas de RAM, batería, ping, pantalla
+│   │   │   │   │   ├── DisplayResolutionScale.kt # Perfiles y métricas de escala de resolución y DPI
 │   │   │   │   │   └── GameItem.kt          # Modelo de juegos, perfiles y resultados de boost
 │   │   │   │   ├── receiver/                # Receptores de difusión del sistema
-│   │   │   │   │   └── BootRecoveryReceiver.kt # Fail-safe de arranque para restaurar drivers y GMS
+│   │   │   │   │   ├── BootRecoveryReceiver.kt # Fail-safe de arranque para restaurar drivers, resolución y GMS
+│   │   │   │   │   └── EmergencyResetReceiver.kt # Botón de pánico para restablecer resolución y DPI al instante
 │   │   │   │   ├── service/                 # Servicios en segundo plano
-│   │   │   │   │   ├── GameWatcherService.kt# Centinela en juego: hibernación, monitoreo y reversión
+│   │   │   │   │   ├── GameWatcherService.kt# Centinela en juego: hibernación, resolución, monitoreo y reversión
 │   │   │   │   │   ├── GameOverlayService.kt# Servicio Foreground para HUD Flotante in-game
 │   │   │   │   │   └── overlay/             # Módulos del HUD Flotante
 │   │   │   │   │       ├── DraggableOverlayWindowManager.kt # Ventana flotante, layout y gestos táctiles de arrastre
@@ -40,7 +42,7 @@ Este documento detalla la organización de directorios, capas de arquitectura mo
 │   │   │   │   │   │   ├── BoostDialog.kt          # Diálogo con barra de progreso y reporte
 │   │   │   │   │   │   ├── BoostProfileSelector.kt # Selector de perfiles (Ultra/Batería/Red)
 │   │   │   │   │   │   ├── BoosterHeaderBar.kt     # Barra de encabezado, marca, estados y accesos directos
-│   │   │   │   │   │   ├── GameConfigSheet.kt      # Menú de ajuste y forzado de motor gráfico (Vulkan/ANGLE/OpenGL)
+│   │   │   │   │   │   ├── GameConfigSheet.kt      # Menú de ajuste: GPU Drivers y Escala de Resolución/DPI (5 capas)
 │   │   │   │   │   │   ├── GameLauncherSection.kt  # Cuadrícula y lista de juegos con badges de driver
 │   │   │   │   │   │   ├── GameOverlayHudView.kt   # Fachada coordinadora de la vista flotante in-game
 │   │   │   │   │   │   ├── GamerHudGauge.kt        # Tacómetro/indicador circular interactivo
@@ -75,6 +77,7 @@ Este documento detalla la organización de directorios, capas de arquitectura mo
 │   │   │   │       ├── shizuku/                 # Módulos especializados de Shizuku (ADB)
 │   │   │   │       │   ├── ShizukuTypes.kt                  # Modelos de estado, reportes y resultados Shell
 │   │   │   │       │   ├── AdbShellExecutor.kt              # Ejecución de comandos Shell vía IPC Shizuku
+│   │   │   │       │   ├── DisplayScaleController.kt        # Controlador de resolución y DPI con failsafe de 5 capas
 │   │   │   │       │   ├── GraphicsDriverController.kt      # Inyección aislada de drivers (Vulkan/ANGLE/OpenGL)
 │   │   │   │       │   ├── ProcessHibernationController.kt  # Suspensión de GMS y congelamiento de procesos
 │   │   │   │       │   └── AppProcessInspector.kt           # Detección de apps en primer plano
@@ -136,7 +139,8 @@ Este documento detalla la organización de directorios, capas de arquitectura mo
 
 ### 🧩 Desglose de Responsabilidades Modulares:
 
-1. **Capa de Telemetría del Sistema (`util/system/` y `SystemInfoHelper.kt`)**:
+1. **Capa de Telemetría del Sistema (`util/system/`, `SystemInfoHelper.kt`, `native-lib.cpp`)**:
+   - `native-lib.cpp`: Telemetría nativa en C++ a cero asignaciones (*Zero-Alloc / Zero-GC Jank*) leyendo `/proc/stat` y `/sys/class/thermal/` con buffers en pila, además de calcular frametimes en nanosegundos (`CLOCK_MONOTONIC_RAW`), latencia media por fotograma y percentiles 1% Low FPS.
    - `ThermalTelemetryReader`: Lectura a bajo nivel de la temperatura del procesador/SoC leyendo nodos térmicos reales del kernel Linux (`/sys/class/thermal/`).
    - `NetworkPingTester`: Medición de latencia real contra servidores DNS globales de alta disponibilidad mediante sockets TCP/UDP.
    - `InstalledAppScanner`: Escaneo eficiente del paquete de aplicaciones instaladas con detección heurística y por flags de juegos.

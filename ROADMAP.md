@@ -22,16 +22,20 @@ Este documento traza las fases de desarrollo y evolución de **Game Booster Turb
 - [x] **Suspensión Temporal de Google Play Services**: Reducción drástica de consumo de memoria RAM (+350MB-600MB liberados) durante la partida.
 - [x] **Reversión Instantánea y Fail-Safe**: Restauración inmediata de todos los servicios al salir del juego y receptor de recuperación tras reinicio (`BootRecoveryReceiver`).
 - [x] **Burbuja Flotante HUD en Juego (`GameOverlayService`)**: Overlay flotante y panel desplegable con contador de FPS en tiempo real, telemetría SoC/RAM, Quick Boost al vuelo y switcher de controladores gráficos (Vulkan, ANGLE, OpenGL) directamente dentro de la partida.
+- [x] **Gestión de Resolución y DPI por Juego (Failsafe en 5 Capas)**:
+  - Selector de resolución y densidad (`wm size` / `wm density`) con perfiles: 100% Nativo, 85% Balance, 75% HD+ y 50% Ultra Fluidez.
+  - Arquitectura blindada contra congelamientos del teléfono: Watchdog daemon shell (Dead-Man's switch 35s), Botón de Pánico permanente en notificación (`EmergencyResetReceiver`), receptor de reinicio (`BootRecoveryReceiver`), cálculo simétrico de pares de píxeles y prueba de 15 segundos con cuenta regresiva.
 - [ ] **Modo No Molestar Gamer (DND)**: Silenciado de notificaciones y llamadas entrantes durante partidas mediante permisos de política de notificaciones.
-- [ ] **Gestión de Resolución y DPI por Juego**: Configurar escala de renderizado específica para cada juego añadido mediante `wm size` / `wm density`.
 
 ---
 
 ## 📍 Fase 3: Aceleración Nativa (C++ / Rust Core)
-- [ ] **Compilación de Binarios NDK (`libgamebooster_native.so`)**:
-  - Implementación de algoritmos de cálculo de presión de memoria en C++.
-  - Lectura de telemetría de kernel Linux `/proc/stat` y `/sys/class/thermal` a nivel nativo.
-- [ ] **Compilación de Módulo Rust (`libgamebooster_rust_core.so`)**:
+- [x] **Telemetría Zero-Alloc en C++ NDK (`native-lib.cpp`)**:
+  - Lectura de telemetría de kernel Linux `/proc/stat` y `/sys/class/thermal` a nivel nativo con buffers en pila y 0 asignaciones de memoria (Zero GC Jank).
+  - Cálculo de Frametimes de alta precisión y percentiles 1% Low / 0.1% Low FPS con `CLOCK_MONOTONIC_RAW`.
+- [ ] **Compilación y Empaquetado Automático NDK / Cargo**:
+  - Configuración del toolchain para generar binarios `.so` precompilados de arquitecturas `arm64-v8a` y `armeabi-v7a`.
+- [ ] **Módulo Rust Avanzado (`libgamebooster_rust_core.so`)**:
   - Algoritmo de filtrado de jitter y cálculo estadístico de latencia de paquetes en Rust.
   - Gestión segura de buffers de memoria.
 

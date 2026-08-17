@@ -1,14 +1,9 @@
 package com.example.ui.components.overlay
 
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,12 +21,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -45,37 +39,65 @@ import com.example.ui.theme.NeonPurple
 import com.example.ui.theme.NeonRed
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
+import kotlin.math.hypot
 
 @Composable
 fun FloatingGamerBubble(
     fps: Int,
     temp: Int,
-    onBubbleClick: () -> Unit
+    onBubbleClick: () -> Unit,
+    onDrag: (Float, Float) -> Unit = { _, _ -> }
 ) {
-    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
-    val pulseScale by infiniteTransition.animateFloat(
-        initialValue = 0.96f,
-        targetValue = 1.04f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1200, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "pulseScale"
-    )
-
     Card(
         modifier = Modifier
-            .scale(pulseScale)
             .clip(RoundedCornerShape(24.dp))
             .border(
                 1.5.dp,
                 Brush.horizontalGradient(listOf(NeonCyan, NeonPurple)),
                 RoundedCornerShape(24.dp)
             )
-            .clickable { onBubbleClick() }
+            .pointerInput(Unit) {
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    var prevX = down.position.x
+                    var prevY = down.position.y
+                    var isDrag = false
+                    var totalDrag = 0f
+                    val touchSlop = viewConfiguration.touchSlop
+
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        val current = event.changes.firstOrNull { it.id == down.id } ?: break
+
+                        if (!current.pressed) {
+                            // Finger lifted (UP)
+                            if (!isDrag) {
+                                onBubbleClick()
+                            }
+                            break
+                        }
+
+                        val dx = current.position.x - prevX
+                        val dy = current.position.y - prevY
+                        totalDrag += hypot(dx, dy)
+
+                        if (!isDrag && totalDrag > touchSlop) {
+                            isDrag = true
+                        }
+
+                        if (isDrag) {
+                            current.consume()
+                            onDrag(dx, dy)
+                        }
+
+                        prevX = current.position.x
+                        prevY = current.position.y
+                    }
+                }
+            }
             .testTag("floating_hud_bubble"),
         colors = CardDefaults.cardColors(
-            containerColor = GamerDarkBackground.copy(alpha = 0.92f)
+            containerColor = GamerDarkBackground.copy(alpha = 0.95f)
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
     ) {

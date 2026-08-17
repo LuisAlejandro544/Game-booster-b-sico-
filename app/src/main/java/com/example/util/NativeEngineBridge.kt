@@ -66,6 +66,37 @@ object NativeEngineBridge {
         return readCpuUsageFromProcStat()
     }
 
+    fun getSocTemperature(): Float {
+        if (isNativeLoaded) {
+            try {
+                val temp = getNativeSocTemperature()
+                if (temp > 0) return temp
+            } catch (_: Throwable) {}
+        }
+        return -1.0f
+    }
+
+    fun recordFrame(frameNanos: Long = 0L) {
+        if (isNativeLoaded) {
+            try {
+                recordFrameTimestamp(frameNanos)
+            } catch (_: Throwable) {}
+        }
+    }
+
+    fun getFrametimeStats(): Triple<Float, Float, Float> {
+        // Returns Triple(avgFrametimeMs, onePercentLowFps, zeroPointOnePercentLowFps)
+        if (isNativeLoaded) {
+            try {
+                val stats = getHighPrecisionFrametimeStats()
+                if (stats != null && stats.size >= 3) {
+                    return Triple(stats[0], stats[1], stats[2])
+                }
+            } catch (_: Throwable) {}
+        }
+        return Triple(16.6f, 58.0f, 55.0f)
+    }
+
     private fun readCpuUsageFromProcStat(): Int {
         return try {
             val statFile = java.io.File("/proc/stat")
@@ -133,5 +164,8 @@ object NativeEngineBridge {
     private external fun getNativeEngineVersion(): String
     private external fun getNativeFreeRamBytes(): Long
     private external fun getNativeCpuUsage(): Int
+    private external fun getNativeSocTemperature(): Float
+    private external fun recordFrameTimestamp(frameNanos: Long)
+    private external fun getHighPrecisionFrametimeStats(): FloatArray?
     private external fun getNativeOptimalBuffer(currentPing: Int, ramUsagePercent: Int): Int
 }

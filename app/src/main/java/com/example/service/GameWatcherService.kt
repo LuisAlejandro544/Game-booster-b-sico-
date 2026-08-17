@@ -13,9 +13,11 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.example.MainActivity
 import com.example.data.BoosterPreferences
+import com.example.model.DisplayResolutionScale
 import com.example.model.GraphicsDriver
 import com.example.util.ShizukuManager
 import com.example.util.SystemInfoHelper
+import com.example.util.shizuku.DisplayScaleController
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -36,6 +38,7 @@ class GameWatcherService : Service() {
     private var targetPackage: String? = null
     private var targetGameTitle: String = "Juego"
     private var appliedDriver: GraphicsDriver = GraphicsDriver.SYSTEM_DEFAULT
+    private var appliedDisplayScale: DisplayResolutionScale = DisplayResolutionScale.NATIVE_100
     private var hibernateGoogle: Boolean = false
     private var deepHibernate: Boolean = true
 
@@ -66,6 +69,12 @@ class GameWatcherService : Service() {
         } catch (_: Exception) {
             GraphicsDriver.SYSTEM_DEFAULT
         }
+        val scaleName = intent.getStringExtra(EXTRA_DISPLAY_SCALE) ?: DisplayResolutionScale.NATIVE_100.name
+        appliedDisplayScale = try {
+            DisplayResolutionScale.valueOf(scaleName)
+        } catch (_: Exception) {
+            DisplayResolutionScale.NATIVE_100
+        }
         hibernateGoogle = intent.getBooleanExtra(EXTRA_HIBERNATE_GOOGLE, false)
         deepHibernate = intent.getBooleanExtra(EXTRA_DEEP_HIBERNATE, true)
 
@@ -75,7 +84,7 @@ class GameWatcherService : Service() {
         }
 
         // Start Foreground Notification
-        val notification = buildForegroundNotification("🔥 Modo Turbo Gamer Activo: $targetGameTitle", "Optimizando CPU, GPU y memoria RAM en vivo")
+        val notification = buildForegroundNotification("🔥 Modo Turbo Gamer Activo: $targetGameTitle", "Optimizando CPU, GPU, resolución y RAM en vivo")
         startForeground(NOTIFICATION_ID, notification)
 
         // Save active state to prefs
@@ -94,6 +103,15 @@ class GameWatcherService : Service() {
 
             // 1. Initial Injection: Apply GPU driver
             ShizukuManager.applyGameGraphicsDriver(pkg, appliedDriver)
+
+            // 1.2 Apply Display Resolution & DPI Scale with 5-layer failsafe
+            if (appliedDisplayScale != DisplayResolutionScale.NATIVE_100) {
+                DisplayScaleController.applyDisplayScale(
+                    context = this@GameWatcherService,
+                    scale = appliedDisplayScale,
+                    isAuthorized = ShizukuManager.isAuthorized
+                )
+            }
 
             // 1.5 Launch Floating HUD Overlay if permitted and enabled
             if (android.provider.Settings.canDrawOverlays(this@GameWatcherService) && prefs.getGameOverlayHud(pkg)) {
@@ -118,7 +136,7 @@ class GameWatcherService : Service() {
                 ShizukuManager.suspendGooglePlayServices()
             }
 
-            // 4. Monitoring Loop
+            // 4. Monitoring Loop with Heartbeat Watchdog ticks
             while (isActive) {
                 delay(3000L)
 
@@ -126,6 +144,8 @@ class GameWatcherService : Service() {
                 if (isFg) {
                     hasBeenInForeground = true
                     consecutiveBackgroundChecks = 0
+                    // Layer 1 Failsafe: keep shell watchdog alive while user is playing
+                    DisplayScaleController.sendHeartbeatTick(ShizukuManager.isAuthorized)
                 } else {
                     if (hasBeenInForeground) {
                         consecutiveBackgroundChecks++
@@ -147,6 +167,9 @@ class GameWatcherService : Service() {
     private suspend fun restoreAllSystemSettings() {
         // Stop Floating In-Game HUD
         GameOverlayService.stop(this@GameWatcherService)
+
+        // Restore Display Scale & Density (Layer 3)
+        DisplayScaleController.resetDisplayScale(this@GameWatcherService, ShizukuManager.isAuthorized)
 
         val pkg = targetPackage
         if (pkg != null) {
@@ -235,6 +258,7 @@ class GameWatcherService : Service() {
         const val EXTRA_TARGET_PACKAGE = "extra_target_package"
         const val EXTRA_TARGET_TITLE = "extra_target_title"
         const val EXTRA_GRAPHICS_DRIVER = "extra_graphics_driver"
+        const val EXTRA_DISPLAY_SCALE = "extra_display_scale"
         const val EXTRA_HIBERNATE_GOOGLE = "extra_hibernate_google"
         const val EXTRA_DEEP_HIBERNATE = "extra_deep_hibernate"
 
@@ -244,13 +268,15 @@ class GameWatcherService : Service() {
             gameTitle: String,
             driver: GraphicsDriver,
             hibernateGoogle: Boolean,
-            deepHibernate: Boolean
+            deepHibernate: Boolean,
+            displayScale: DisplayResolutionScale = DisplayResolutionScale.NATIVE_100
         ) {
             val intent = Intent(context, GameWatcherService::class.java).apply {
                 action = ACTION_START_WATCHER
                 putExtra(EXTRA_TARGET_PACKAGE, packageName)
                 putExtra(EXTRA_TARGET_TITLE, gameTitle)
                 putExtra(EXTRA_GRAPHICS_DRIVER, driver.name)
+                putExtra(EXTRA_DISPLAY_SCALE, displayScale.name)
                 putExtra(EXTRA_HIBERNATE_GOOGLE, hibernateGoogle)
                 putExtra(EXTRA_DEEP_HIBERNATE, deepHibernate)
             }
