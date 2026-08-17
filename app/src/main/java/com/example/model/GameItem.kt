@@ -54,7 +54,8 @@ data class GameItem(
     val graphicsDriver: GraphicsDriver = GraphicsDriver.SYSTEM_DEFAULT,
     val hibernateGoogleServices: Boolean = false,
     val deepBackgroundHibernate: Boolean = true,
-    val enableOverlayHud: Boolean = true
+    val enableOverlayHud: Boolean = true,
+    val displayScale: DisplayResolutionScale = DisplayResolutionScale.NATIVE_100
 )
 
 data class BoostResult(
@@ -66,6 +67,7 @@ data class BoostResult(
     val durationMs: Long,
     val isElevatedShizuku: Boolean = false,
     val appliedDriver: GraphicsDriver = GraphicsDriver.SYSTEM_DEFAULT,
+    val appliedDisplayScale: DisplayResolutionScale = DisplayResolutionScale.NATIVE_100,
     val shizukuLogs: List<String> = emptyList(),
     val timestamp: Long = System.currentTimeMillis()
 )

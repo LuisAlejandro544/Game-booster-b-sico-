@@ -21,12 +21,15 @@ import com.example.MainActivity
 import com.example.R
 import com.example.data.BoosterPreferences
 import com.example.model.DeviceMetrics
+import com.example.model.DisplayResolutionScale
 import com.example.model.GraphicsDriver
 import com.example.service.overlay.DraggableOverlayWindowManager
 import com.example.ui.components.GameOverlayHudContent
 import com.example.ui.theme.GameBoosterTheme
 import com.example.util.ShizukuManager
 import com.example.util.SystemInfoHelper
+import com.example.util.shizuku.DisplayScaleController
+import com.example.util.shizuku.ResolutionCountdownNotifier
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -45,12 +48,19 @@ class GameOverlayService : Service() {
     private var targetPackage: String? = null
     private var targetGameTitle: String = "Juego"
     private var currentDriver: GraphicsDriver = GraphicsDriver.SYSTEM_DEFAULT
+    private var currentDisplayScale: DisplayResolutionScale = DisplayResolutionScale.NATIVE_100
 
     // UI States
     private var isExpanded by mutableStateOf(false)
     private var currentFps by mutableIntStateOf(60)
     private var metricsState by mutableStateOf(DeviceMetrics())
     private var feedbackMessage by mutableStateOf<String?>(null)
+
+    // Resolution Testing States
+    private var isTestingResolution by mutableStateOf(false)
+    private var testCountdownSeconds by mutableIntStateOf(15)
+    private var scaleBeforeTest: DisplayResolutionScale = DisplayResolutionScale.NATIVE_100
+    private var resolutionTestJob: Job? = null
 
     // FPS Counter tracking
     private var frameCount = 0
@@ -99,6 +109,12 @@ class GameOverlayService : Service() {
         } catch (_: Exception) {
             GraphicsDriver.SYSTEM_DEFAULT
         }
+        val scaleName = intent.getStringExtra(EXTRA_DISPLAY_SCALE) ?: DisplayResolutionScale.NATIVE_100.name
+        currentDisplayScale = try {
+            DisplayResolutionScale.valueOf(scaleName)
+        } catch (_: Exception) {
+            DisplayResolutionScale.NATIVE_100
+        }
 
         // Start Foreground Notification
         val notification = buildForegroundNotification()
@@ -130,6 +146,9 @@ class GameOverlayService : Service() {
                     targetGamePackage = targetPackage,
                     targetGameTitle = targetGameTitle,
                     currentDriver = currentDriver,
+                    currentDisplayScale = currentDisplayScale,
+                    isTestingResolution = isTestingResolution,
+                    testCountdownSeconds = testCountdownSeconds,
                     metrics = metricsState,
                     onToggleExpand = {
                         isExpanded = !isExpanded
@@ -140,8 +159,32 @@ class GameOverlayService : Service() {
                         currentDriver = newDriver
                         applyDriverInGame(newDriver)
                     },
+                    onScaleSelected = { newScale ->
+                        applyScaleInGame(newScale)
+                    },
+                    onStartResolutionTest = { testScale ->
+                        startResolutionTestInGame(testScale)
+                    },
+                    onConfirmResolutionTest = {
+                        confirmResolutionTestInGame()
+                    },
+                    onCancelResolutionTest = {
+                        cancelResolutionTestInGame()
+                    },
                     onQuickBoost = { executeInGameQuickBoost() },
-                    feedbackMessage = feedbackMessage
+                    feedbackMessage = feedbackMessage,
+                    onDragStart = { rawX, rawY ->
+                        overlayWindowManager.onDragStart(rawX, rawY)
+                    },
+                    onDragMove = { rawX, rawY ->
+                        overlayWindowManager.onDragMove(rawX, rawY)
+                    },
+                    onDragEnd = {
+                        overlayWindowManager.onDragEnd()
+                    },
+                    onDrag = { dx, dy ->
+                        overlayWindowManager.moveBy(dx, dy)
+                    }
                 )
             }
         }
@@ -173,6 +216,93 @@ class GameOverlayService : Service() {
             } catch (e: Exception) {
                 Log.e(TAG, "Error applying driver in game", e)
             }
+        }
+    }
+
+    private fun applyScaleInGame(newScale: DisplayResolutionScale) {
+        val pkg = targetPackage ?: return
+        serviceScope.launch(Dispatchers.IO) {
+            try {
+                currentDisplayScale = newScale
+                prefs.setGameDisplayScale(pkg, newScale)
+                DisplayScaleController.applyDisplayScale(
+                    context = this@GameOverlayService,
+                    scale = newScale,
+                    isAuthorized = ShizukuManager.isAuthorized
+                )
+                feedbackMessage = "✓ Escala ${newScale.title} aplicada"
+                delay(3000L)
+                feedbackMessage = null
+            } catch (e: Exception) {
+                Log.e(TAG, "Error applying display scale in game", e)
+            }
+        }
+    }
+
+    private fun startResolutionTestInGame(testScale: DisplayResolutionScale) {
+        if (!ShizukuManager.isAuthorized) {
+            feedbackMessage = "⚠️ Requiere Shizuku autorizado"
+            return
+        }
+
+        resolutionTestJob?.cancel()
+        scaleBeforeTest = currentDisplayScale
+        currentDisplayScale = testScale
+        isTestingResolution = true
+        testCountdownSeconds = 15
+
+        resolutionTestJob = serviceScope.launch {
+            // Apply scale
+            DisplayScaleController.applyDisplayScale(
+                context = this@GameOverlayService,
+                scale = testScale,
+                isAuthorized = ShizukuManager.isAuthorized
+            )
+
+            for (sec in 15 downTo 1) {
+                testCountdownSeconds = sec
+                ResolutionCountdownNotifier.showCountdownTick(this@GameOverlayService, sec, testScale)
+                delay(1000L)
+            }
+
+            // Auto-revert if countdown completes without confirmation
+            if (isTestingResolution) {
+                cancelResolutionTestInGame()
+                ResolutionCountdownNotifier.showReverted(this@GameOverlayService)
+                feedbackMessage = "⏱️ Test finalizado: Escala revertida"
+                delay(3000L)
+                feedbackMessage = null
+            }
+        }
+    }
+
+    private fun confirmResolutionTestInGame() {
+        resolutionTestJob?.cancel()
+        isTestingResolution = false
+        ResolutionCountdownNotifier.showConfirmed(this@GameOverlayService, currentDisplayScale)
+        val pkg = targetPackage
+        if (pkg != null) {
+            prefs.setGameDisplayScale(pkg, currentDisplayScale)
+        }
+        feedbackMessage = "✓ Escala ${currentDisplayScale.title} confirmada"
+        serviceScope.launch {
+            delay(3000L)
+            feedbackMessage = null
+        }
+    }
+
+    private fun cancelResolutionTestInGame() {
+        resolutionTestJob?.cancel()
+        isTestingResolution = false
+        ResolutionCountdownNotifier.cancel()
+        val prevScale = scaleBeforeTest
+        currentDisplayScale = prevScale
+        serviceScope.launch(Dispatchers.IO) {
+            DisplayScaleController.applyDisplayScale(
+                context = this@GameOverlayService,
+                scale = prevScale,
+                isAuthorized = ShizukuManager.isAuthorized
+            )
         }
     }
 
@@ -225,7 +355,7 @@ class GameOverlayService : Service() {
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("🎮 HUD Gamer Activo: $targetGameTitle")
-            .setContentText("Burbuja flotante de FPS y switch de motor gráfico en vivo")
+            .setContentText("Burbuja flotante de FPS, resolución y motor gráfico en vivo")
             .setSmallIcon(R.mipmap.ic_launcher)
             .setOngoing(true)
             .setContentIntent(pendingIntent)
@@ -249,18 +379,21 @@ class GameOverlayService : Service() {
         const val EXTRA_TARGET_PACKAGE = "extra_target_package"
         const val EXTRA_TARGET_TITLE = "extra_target_title"
         const val EXTRA_GRAPHICS_DRIVER = "extra_graphics_driver"
+        const val EXTRA_DISPLAY_SCALE = "extra_display_scale"
         const val ACTION_STOP_OVERLAY = "action_stop_overlay"
 
         fun start(
             context: Context,
             packageName: String?,
             gameTitle: String,
-            driver: GraphicsDriver
+            driver: GraphicsDriver,
+            displayScale: DisplayResolutionScale = DisplayResolutionScale.NATIVE_100
         ) {
             val intent = Intent(context, GameOverlayService::class.java).apply {
                 putExtra(EXTRA_TARGET_PACKAGE, packageName)
                 putExtra(EXTRA_TARGET_TITLE, gameTitle)
                 putExtra(EXTRA_GRAPHICS_DRIVER, driver.name)
+                putExtra(EXTRA_DISPLAY_SCALE, displayScale.name)
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(intent)
@@ -277,3 +410,4 @@ class GameOverlayService : Service() {
         }
     }
 }
+

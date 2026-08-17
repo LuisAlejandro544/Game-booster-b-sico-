@@ -20,6 +20,14 @@
   - Configuración individual del controlador GPU: **Vulkan Game Driver**, **ANGLE (OpenGL ES sobre Vulkan)**, **OpenGL ES Nativo** o **Automático del Sistema**.
   - Inyección segura de driver por paquete mediante Shizuku (`settings put global updatable_driver_production_opt_in_apps` y `angle_gl_driver_selection_pkgs`).
   - Cero uso de propiedades `persist.sys.*` para máxima seguridad del firmware.
+- **🖥️ Selector de Resolución y Escala DPI (Failsafe 5 Capas)**:
+  - Reducción de la carga de renderizado del GPU hasta un **75%** (`wm size` y `wm density`) con perfiles de escala: **100% Nativo**, **85% Balanceado**, **75% Rendimiento HD+** y **50% Ultra Fluidez**.
+  - **Arquitectura de Seguridad en 5 Capas contra Cierres Inesperados**:
+    1. **Watchdog Daemon (Dead-Man's Switch)**: Proceso script en shell independiente con timeout de 35s que monitorea un archivo heartbeat y restaura la pantalla a resolución de fábrica si Android o el LMK cierran la aplicación.
+    2. **Botón de Pánico Permanente**: Notificación persistente con receptor directo `EmergencyResetReceiver` para volver a la pantalla nativa con un solo toque desde cualquier lugar.
+    3. **Boot Recovery Automático**: Restablecimiento garantizado si el dispositivo se apaga o reinicia (`BootRecoveryReceiver`).
+    4. **Clamping Proporcional Simétrico**: Ancho y alto calculados siempre en números pares y densidad DPI recalculada de forma milimétrica para evitar descalibración táctil o que los botones se vuelvan diminutos/gigantes.
+    5. **Modo Prueba de 15 Segundos**: Prueba en vivo en la interfaz de configuración con cuenta regresiva interactiva y reversión automática si el usuario no confirma.
 - **❄️ Centinela de Hibernación en Juego (RAM Boost Extremo)**:
   - **Monitoreo en Vivo (`GameWatcherService`)**: Servicio centinela en primer plano que detecta en tiempo real cuándo estás dentro del juego y cuándo sales o minimizas.
   - **Hibernación de Procesos**: Congela apps secundarias y redes sociales (`am set-inactive` y `pm suspend`) mientras juegas.

@@ -1,14 +1,8 @@
 package com.example.ui.components.overlay
 
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
+import android.view.MotionEvent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,11 +21,16 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.input.pointer.pointerInteropFilter
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -45,37 +44,72 @@ import com.example.ui.theme.NeonPurple
 import com.example.ui.theme.NeonRed
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
+import kotlin.math.hypot
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun FloatingGamerBubble(
     fps: Int,
     temp: Int,
-    onBubbleClick: () -> Unit
+    onBubbleClick: () -> Unit,
+    onDragStart: (Float, Float) -> Unit = { _, _ -> },
+    onDragMove: (Float, Float) -> Unit = { _, _ -> },
+    onDragEnd: () -> Unit = {},
+    onDrag: (Float, Float) -> Unit = { _, _ -> }
 ) {
-    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
-    val pulseScale by infiniteTransition.animateFloat(
-        initialValue = 0.96f,
-        targetValue = 1.04f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1200, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "pulseScale"
-    )
+    var touchDownRawX by remember { mutableFloatStateOf(0f) }
+    var touchDownRawY by remember { mutableFloatStateOf(0f) }
+    var isDragging by remember { mutableStateOf(false) }
 
     Card(
         modifier = Modifier
-            .scale(pulseScale)
             .clip(RoundedCornerShape(24.dp))
             .border(
                 1.5.dp,
                 Brush.horizontalGradient(listOf(NeonCyan, NeonPurple)),
                 RoundedCornerShape(24.dp)
             )
-            .clickable { onBubbleClick() }
+            .pointerInteropFilter { motionEvent ->
+                when (motionEvent.actionMasked) {
+                    MotionEvent.ACTION_DOWN -> {
+                        touchDownRawX = motionEvent.rawX
+                        touchDownRawY = motionEvent.rawY
+                        isDragging = false
+                        onDragStart(motionEvent.rawX, motionEvent.rawY)
+                        true
+                    }
+                    MotionEvent.ACTION_MOVE -> {
+                        val dist = hypot(motionEvent.rawX - touchDownRawX, motionEvent.rawY - touchDownRawY)
+                        if (!isDragging && dist > 16f) {
+                            isDragging = true
+                        }
+                        if (isDragging) {
+                            onDragMove(motionEvent.rawX, motionEvent.rawY)
+                        }
+                        true
+                    }
+                    MotionEvent.ACTION_UP -> {
+                        if (isDragging) {
+                            onDragEnd()
+                        } else {
+                            onBubbleClick()
+                        }
+                        isDragging = false
+                        true
+                    }
+                    MotionEvent.ACTION_CANCEL -> {
+                        if (isDragging) {
+                            onDragEnd()
+                        }
+                        isDragging = false
+                        true
+                    }
+                    else -> false
+                }
+            }
             .testTag("floating_hud_bubble"),
         colors = CardDefaults.cardColors(
-            containerColor = GamerDarkBackground.copy(alpha = 0.92f)
+            containerColor = GamerDarkBackground.copy(alpha = 0.95f)
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
     ) {

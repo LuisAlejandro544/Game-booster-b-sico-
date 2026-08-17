@@ -45,6 +45,8 @@ fun BoosterHomeScreen(
     val showAddGameSheet by viewModel.showAddGameSheet.collectAsState()
     val showSpeedTester by viewModel.showSpeedTester.collectAsState()
     val selectedGameForConfig by viewModel.selectedGameForConfig.collectAsState()
+    val isTestingResolution by viewModel.isTestingResolution.collectAsState()
+    val testCountdownSeconds by viewModel.testCountdownSeconds.collectAsState()
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -132,16 +134,32 @@ fun BoosterHomeScreen(
     selectedGameForConfig?.let { gameToConfig ->
         GameConfigSheet(
             game = gameToConfig,
+            isShizukuAuthorized = shizukuStatus.state == com.example.util.ShizukuState.AUTHORIZED,
+            isTestingResolution = isTestingResolution,
+            testCountdownSeconds = testCountdownSeconds,
             onDriverSelected = { driver ->
                 viewModel.updateGameGraphicsDriver(gameToConfig, driver)
             },
-            onSaveConfig = { driver, deepHib, hibGoogle, overlayHud ->
-                viewModel.saveGameConfiguration(gameToConfig, driver, deepHib, hibGoogle, overlayHud)
+            onScaleSelected = { scale ->
+                viewModel.updateGameDisplayScale(gameToConfig, scale)
             },
-            onBoostAndLaunch = { game, driver, deepHib, hibGoogle, overlayHud ->
+            onTestScale = { scale ->
+                viewModel.startResolutionTest(scale)
+            },
+            onConfirmTest = { game ->
+                viewModel.confirmResolutionTest(game)
+            },
+            onCancelTest = {
+                viewModel.cancelResolutionTest()
+            },
+            onSaveConfig = { driver, scale, deepHib, hibGoogle, overlayHud ->
+                viewModel.saveGameConfiguration(gameToConfig, driver, scale, deepHib, hibGoogle, overlayHud)
+            },
+            onBoostAndLaunch = { game, driver, scale, deepHib, hibGoogle, overlayHud ->
                 viewModel.triggerBoost(
                     targetGame = game,
                     forcedDriver = driver,
+                    forcedDisplayScale = scale,
                     deepHibernate = deepHib,
                     hibernateGoogle = hibGoogle,
                     enableOverlayHud = overlayHud
@@ -166,6 +184,7 @@ fun BoosterHomeScreen(
     if (showAddGameSheet) {
         AppPickerSheet(
             installedApps = installedApps,
+            addedPackageNames = gamesList.map { it.packageName }.toSet(),
             onSelectApp = { app -> viewModel.addGameToDashboard(app) },
             onDismiss = { viewModel.toggleAddGameSheet(false) }
         )

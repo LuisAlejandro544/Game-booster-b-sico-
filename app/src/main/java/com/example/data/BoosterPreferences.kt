@@ -98,6 +98,51 @@ class BoosterPreferences(context: Context) {
         prefs.edit().putBoolean("overlay_hud_$packageName", enabled).apply()
     }
 
+    fun getGameDisplayScale(packageName: String): com.example.model.DisplayResolutionScale {
+        val name = prefs.getString("scale_$packageName", com.example.model.DisplayResolutionScale.NATIVE_100.name)
+        return try {
+            com.example.model.DisplayResolutionScale.valueOf(name ?: com.example.model.DisplayResolutionScale.NATIVE_100.name)
+        } catch (_: Exception) {
+            com.example.model.DisplayResolutionScale.NATIVE_100
+        }
+    }
+
+    fun setGameDisplayScale(packageName: String, scale: com.example.model.DisplayResolutionScale) {
+        prefs.edit().putString("scale_$packageName", scale.name).apply()
+    }
+
+    fun isCustomDisplayScaleActive(): Boolean {
+        return prefs.getBoolean("custom_display_scale_active", false)
+    }
+
+    fun setCustomDisplayScaleActive(active: Boolean) {
+        prefs.edit().putBoolean("custom_display_scale_active", active).apply()
+    }
+
+    fun getPhysicalDisplayWidth(): Int {
+        return prefs.getInt("physical_display_w", 0)
+    }
+
+    fun setPhysicalDisplayWidth(w: Int) {
+        prefs.edit().putInt("physical_display_w", w).apply()
+    }
+
+    fun getPhysicalDisplayHeight(): Int {
+        return prefs.getInt("physical_display_h", 0)
+    }
+
+    fun setPhysicalDisplayHeight(h: Int) {
+        prefs.edit().putInt("physical_display_h", h).apply()
+    }
+
+    fun getPhysicalDisplayDensity(): Int {
+        return prefs.getInt("physical_display_density", 0)
+    }
+
+    fun setPhysicalDisplayDensity(d: Int) {
+        prefs.edit().putInt("physical_display_density", d).apply()
+    }
+
     fun getBoostCount(): Int {
         return prefs.getInt("total_boosts", 0)
     }

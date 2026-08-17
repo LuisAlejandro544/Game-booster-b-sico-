@@ -12,6 +12,8 @@ import com.example.data.BoosterPreferences
 import com.example.model.BoostProfile
 import com.example.model.BoostResult
 import com.example.model.DeviceMetrics
+import com.example.model.DisplayResolutionScale
+import com.example.model.DisplayScaleMetrics
 import com.example.model.GameItem
 import com.example.model.GraphicsDriver
 import com.example.service.GameOverlayService
@@ -21,6 +23,10 @@ import com.example.ui.viewmodel.modules.GameBoostOrchestrator
 import com.example.ui.viewmodel.modules.GameCatalogManager
 import com.example.util.ShizukuManager
 import com.example.util.ShizukuStatus
+import com.example.util.shizuku.DisplayScaleController
+import com.example.util.shizuku.ResolutionCountdownNotifier
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -71,11 +77,35 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
     private val _pendingLaunchGame = MutableStateFlow<GameItem?>(null)
     val pendingLaunchGame: StateFlow<GameItem?> = _pendingLaunchGame.asStateFlow()
 
+    private val _isTestingResolution = MutableStateFlow(false)
+    val isTestingResolution: StateFlow<Boolean> = _isTestingResolution.asStateFlow()
+
+    private val _testCountdownSeconds = MutableStateFlow(15)
+    val testCountdownSeconds: StateFlow<Int> = _testCountdownSeconds.asStateFlow()
+
+    private val _pendingTestScale = MutableStateFlow<DisplayResolutionScale?>(null)
+    val pendingTestScale: StateFlow<DisplayResolutionScale?> = _pendingTestScale.asStateFlow()
+
+    private var resolutionTestJob: Job? = null
+
     init {
         ShizukuManager.initialize()
         catalogManager.loadGames()
         telemetryManager.startPeriodicPolling(isBoostingProvider = { _isBoosting.value })
         telemetryManager.measurePing()
+        ensureGooglePlayServicesActive()
+    }
+
+    fun ensureGooglePlayServicesActive() {
+        viewModelScope.launch {
+            if (ShizukuManager.isAuthorized) {
+                // If not in an active game session requesting suspension, ensure Google services are un-suspended and active
+                if (_activeRunningBoostedGame.value == null) {
+                    ShizukuManager.restoreGooglePlayServices()
+                    prefs.setGoogleServicesSuspended(false)
+                }
+            }
+        }
     }
 
     override fun onCleared() {
@@ -115,11 +145,13 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
 
     fun openGameConfig(game: GameItem) {
         val currentDriver = prefs.getGameDriver(game.packageName)
+        val currentScale = prefs.getGameDisplayScale(game.packageName)
         val deepHib = prefs.getGameDeepHibernate(game.packageName)
         val hibGoogle = prefs.getGameHibernateGoogle(game.packageName)
         val overlayHud = prefs.getGameOverlayHud(game.packageName)
         _selectedGameForConfig.value = game.copy(
             graphicsDriver = currentDriver,
+            displayScale = currentScale,
             deepBackgroundHibernate = deepHib,
             hibernateGoogleServices = hibGoogle,
             enableOverlayHud = overlayHud
@@ -131,21 +163,93 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun updateGameGraphicsDriver(game: GameItem, driver: GraphicsDriver) {
-        val updated = catalogManager.updateGameDriver(game, driver)
+        catalogManager.updateGameDriver(game, driver)
         _selectedGameForConfig.value = _selectedGameForConfig.value?.copy(graphicsDriver = driver)
+    }
+
+    fun updateGameDisplayScale(game: GameItem, scale: DisplayResolutionScale) {
+        catalogManager.updateGameDisplayScale(game, scale)
+        _selectedGameForConfig.value = _selectedGameForConfig.value?.copy(displayScale = scale)
     }
 
     fun saveGameConfiguration(
         game: GameItem,
         driver: GraphicsDriver,
+        displayScale: DisplayResolutionScale,
         deepHibernate: Boolean,
         hibernateGoogle: Boolean,
         enableOverlayHud: Boolean
     ) {
         val updated = catalogManager.saveGameConfiguration(
-            game, driver, deepHibernate, hibernateGoogle, enableOverlayHud
+            game, driver, displayScale, deepHibernate, hibernateGoogle, enableOverlayHud
         )
         _selectedGameForConfig.value = updated
+    }
+
+    /**
+     * Layer 5: Tests a custom resolution and density for 15 seconds with an automatic countdown and failsafe rollback.
+     */
+    fun startResolutionTest(scale: DisplayResolutionScale) {
+        if (!ShizukuManager.isAuthorized) {
+            Toast.makeText(getApplication(), "Requiere autorización Shizuku activa", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        _pendingTestScale.value = scale
+        _testCountdownSeconds.value = 15
+        _isTestingResolution.value = true
+
+        viewModelScope.launch {
+            DisplayScaleController.applyDisplayScale(getApplication(), scale, true)
+
+            resolutionTestJob?.cancel()
+            resolutionTestJob = viewModelScope.launch {
+                for (sec in 15 downTo 1) {
+                    _testCountdownSeconds.value = sec
+                    ResolutionCountdownNotifier.showCountdownTick(getApplication(), sec, scale)
+                    delay(1000L)
+                }
+                // Time expired without user confirmation -> automatic rollback
+                cancelResolutionTest()
+                ResolutionCountdownNotifier.showReverted(getApplication())
+            }
+        }
+    }
+
+    /**
+     * Confirms the tested resolution and saves it to the selected game configuration.
+     */
+    fun confirmResolutionTest(targetGame: GameItem?) {
+        resolutionTestJob?.cancel()
+        _isTestingResolution.value = false
+        val scale = _pendingTestScale.value ?: DisplayResolutionScale.NATIVE_100
+        _pendingTestScale.value = null
+
+        if (targetGame != null) {
+            updateGameDisplayScale(targetGame, scale)
+            ResolutionCountdownNotifier.showConfirmed(getApplication(), scale)
+        } else {
+            ResolutionCountdownNotifier.showConfirmed(getApplication(), scale)
+        }
+
+        // Revert display back to native until game actually launches
+        viewModelScope.launch {
+            DisplayScaleController.resetDisplayScale(getApplication(), ShizukuManager.isAuthorized)
+        }
+    }
+
+    /**
+     * Cancels the resolution test immediately and restores factory display settings.
+     */
+    fun cancelResolutionTest() {
+        resolutionTestJob?.cancel()
+        _isTestingResolution.value = false
+        _pendingTestScale.value = null
+        ResolutionCountdownNotifier.cancel()
+
+        viewModelScope.launch {
+            DisplayScaleController.resetDisplayScale(getApplication(), ShizukuManager.isAuthorized)
+        }
     }
 
     fun toggleSpeedTester(show: Boolean) {
@@ -181,6 +285,7 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
             GameWatcherService.stop(getApplication())
             GameOverlayService.stop(getApplication())
             ShizukuManager.restoreGameGraphicsDriver(activeGame.packageName)
+            DisplayScaleController.resetDisplayScale(getApplication(), ShizukuManager.isAuthorized)
             if (prefs.isGoogleServicesSuspended()) {
                 ShizukuManager.restoreGooglePlayServices()
                 prefs.setGoogleServicesSuspended(false)
@@ -188,7 +293,7 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
             _activeRunningBoostedGame.value = null
             Toast.makeText(
                 getApplication(),
-                "Configuración gráfica y servicios de Android restaurados",
+                "Configuración de pantalla, gráficos y servicios restaurados",
                 Toast.LENGTH_SHORT
             ).show()
         }
@@ -197,6 +302,7 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
     fun triggerBoost(
         targetGame: GameItem? = null,
         forcedDriver: GraphicsDriver? = null,
+        forcedDisplayScale: DisplayResolutionScale? = null,
         deepHibernate: Boolean? = null,
         hibernateGoogle: Boolean? = null,
         enableOverlayHud: Boolean? = null
@@ -206,6 +312,9 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
         val driverToApply = forcedDriver
             ?: targetGame?.let { prefs.getGameDriver(it.packageName) }
             ?: GraphicsDriver.SYSTEM_DEFAULT
+        val scaleToApply = forcedDisplayScale
+            ?: targetGame?.let { prefs.getGameDisplayScale(it.packageName) }
+            ?: DisplayResolutionScale.NATIVE_100
         val useDeepHib = deepHibernate
             ?: targetGame?.let { prefs.getGameDeepHibernate(it.packageName) }
             ?: true
@@ -218,6 +327,7 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
 
         val configuredGame = targetGame?.copy(
             graphicsDriver = driverToApply,
+            displayScale = scaleToApply,
             deepBackgroundHibernate = useDeepHib,
             hibernateGoogleServices = useGoogleHib,
             enableOverlayHud = useOverlay
@@ -231,7 +341,8 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
                     context = context,
                     packageName = configuredGame?.packageName,
                     gameTitle = configuredGame?.title ?: "Juego Optimizado",
-                    driver = driverToApply
+                    driver = driverToApply,
+                    displayScale = scaleToApply
                 )
             } else {
                 requestOverlayPermission()
@@ -253,6 +364,7 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
             val executionResult = boostOrchestrator.executeBoostPipeline(
                 targetGame = targetGame,
                 forcedDriver = forcedDriver,
+                forcedDisplayScale = forcedDisplayScale,
                 deepHibernate = deepHibernate,
                 hibernateGoogle = hibernateGoogle,
                 enableOverlayHud = enableOverlayHud,

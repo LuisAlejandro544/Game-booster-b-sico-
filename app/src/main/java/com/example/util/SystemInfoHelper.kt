@@ -78,7 +78,15 @@ object SystemInfoHelper {
         val cpuCores = Runtime.getRuntime().availableProcessors()
         val deviceModel = "${Build.MANUFACTURER.replaceFirstChar { it.uppercase() }} ${Build.MODEL}"
         val cpuUsagePercent = NativeEngineBridge.getCpuUsagePercent()
-        val cpuTempCelsius = readSocTemperature(batteryTemp)
+        
+        // Try native zero-alloc thermal reading first, fallback to sysfs scanning
+        val nativeSocTemp = NativeEngineBridge.getSocTemperature()
+        val cpuTempCelsius = if (nativeSocTemp > 0) nativeSocTemp else readSocTemperature(batteryTemp)
+
+        // Native High-Precision Frametime Statistics (Zero Allocations)
+        val frametimeStats = NativeEngineBridge.getFrametimeStats()
+        val avgFrametime = frametimeStats.first
+        val onePctLow = frametimeStats.second
 
         // Display refresh rate
         val wm = context.getSystemService(Context.WINDOW_SERVICE) as? WindowManager
@@ -111,7 +119,9 @@ object SystemInfoHelper {
             storageUsagePercent = storageUsagePercent,
             cpuCores = cpuCores,
             deviceModel = deviceModel,
-            refreshRateHz = if (refreshRate in 30..240) refreshRate else 60
+            refreshRateHz = if (refreshRate in 30..240) refreshRate else 60,
+            avgFrametimeMs = avgFrametime,
+            onePercentLowFps = onePctLow
         )
     }
 

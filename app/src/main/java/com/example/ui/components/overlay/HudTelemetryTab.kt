@@ -173,5 +173,58 @@ fun HudTelemetryTab(
                 }
             }
         }
+
+        // Zero-Alloc High Precision Frametimes & 1% Low Card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = GamerSurfaceElevated),
+            shape = RoundedCornerShape(10.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(10.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = "FRAMETIME (C++ ZERO-ALLOC)",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            color = TextSecondary,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    )
+                    Text(
+                        text = "${String.format(java.util.Locale.US, "%.1f", metrics.avgFrametimeMs)} ms / frame",
+                        style = MaterialTheme.typography.titleSmall.copy(
+                            color = NeonCyan,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
+                        )
+                    )
+                }
+
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        text = "1% LOW FPS",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            color = TextSecondary,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    )
+                    Text(
+                        text = "${String.format(java.util.Locale.US, "%.0f", metrics.onePercentLowFps)} FPS",
+                        style = MaterialTheme.typography.titleSmall.copy(
+                            color = if (metrics.onePercentLowFps >= 45) NeonGreen else NeonOrange,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
+                        )
+                    )
+                }
+            }
+        }
     }
 }

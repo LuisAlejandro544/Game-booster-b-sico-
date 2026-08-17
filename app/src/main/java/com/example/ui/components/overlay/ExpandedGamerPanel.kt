@@ -1,5 +1,6 @@
 package com.example.ui.components.overlay
 
+import android.view.MotionEvent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -39,14 +40,17 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.input.pointer.pointerInteropFilter
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.model.DeviceMetrics
+import com.example.model.DisplayResolutionScale
 import com.example.model.GraphicsDriver
 import com.example.ui.theme.GamerDarkBackground
 import com.example.ui.theme.GamerSurfaceElevated
@@ -57,17 +61,29 @@ import com.example.ui.theme.NeonRed
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun ExpandedGamerPanel(
     targetGameTitle: String,
     fps: Int,
     currentDriver: GraphicsDriver,
+    currentDisplayScale: DisplayResolutionScale = DisplayResolutionScale.NATIVE_100,
+    isTestingResolution: Boolean = false,
+    testCountdownSeconds: Int = 15,
     metrics: DeviceMetrics,
     onMinimize: () -> Unit,
     onClose: () -> Unit,
     onDriverSelected: (GraphicsDriver) -> Unit,
+    onScaleSelected: (DisplayResolutionScale) -> Unit = {},
+    onStartResolutionTest: (DisplayResolutionScale) -> Unit = {},
+    onConfirmResolutionTest: () -> Unit = {},
+    onCancelResolutionTest: () -> Unit = {},
     onQuickBoost: () -> Unit,
-    feedbackMessage: String?
+    feedbackMessage: String?,
+    onDragStart: (Float, Float) -> Unit = { _, _ -> },
+    onDragMove: (Float, Float) -> Unit = { _, _ -> },
+    onDragEnd: () -> Unit = {},
+    onDrag: (Float, Float) -> Unit = { _, _ -> }
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
 
@@ -91,9 +107,27 @@ fun ExpandedGamerPanel(
                 .fillMaxWidth()
                 .padding(14.dp)
         ) {
-            // Header: Game Title and Actions
+            // Header: Game Title, Draggable Area and Actions
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .pointerInteropFilter { motionEvent ->
+                        when (motionEvent.actionMasked) {
+                            MotionEvent.ACTION_DOWN -> {
+                                onDragStart(motionEvent.rawX, motionEvent.rawY)
+                                true
+                            }
+                            MotionEvent.ACTION_MOVE -> {
+                                onDragMove(motionEvent.rawX, motionEvent.rawY)
+                                true
+                            }
+                            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                                onDragEnd()
+                                true
+                            }
+                            else -> false
+                        }
+                    },
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -243,6 +277,15 @@ fun ExpandedGamerPanel(
             // Tab Content
             when (HudTab.entries[selectedTab]) {
                 HudTab.TELEMETRY -> HudTelemetryTab(fps = fps, metrics = metrics)
+                HudTab.RESOLUTION -> HudResolutionTab(
+                    currentScale = currentDisplayScale,
+                    isTestingResolution = isTestingResolution,
+                    testCountdownSeconds = testCountdownSeconds,
+                    onScaleSelected = onScaleSelected,
+                    onStartTest = onStartResolutionTest,
+                    onConfirmTest = onConfirmResolutionTest,
+                    onCancelTest = onCancelResolutionTest
+                )
                 HudTab.DRIVERS -> HudDriversTab(
                     currentDriver = currentDriver,
                     onDriverSelected = onDriverSelected

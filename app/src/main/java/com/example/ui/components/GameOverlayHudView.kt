@@ -7,6 +7,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.example.model.DeviceMetrics
+import com.example.model.DisplayResolutionScale
 import com.example.model.GraphicsDriver
 import com.example.ui.components.overlay.ExpandedGamerPanel
 import com.example.ui.components.overlay.FloatingGamerBubble
@@ -25,12 +26,23 @@ fun GameOverlayHudContent(
     targetGamePackage: String?,
     targetGameTitle: String,
     currentDriver: GraphicsDriver,
+    currentDisplayScale: DisplayResolutionScale = DisplayResolutionScale.NATIVE_100,
+    isTestingResolution: Boolean = false,
+    testCountdownSeconds: Int = 15,
     metrics: DeviceMetrics,
     onToggleExpand: () -> Unit,
     onCloseOverlay: () -> Unit,
     onDriverSelected: (GraphicsDriver) -> Unit,
+    onScaleSelected: (DisplayResolutionScale) -> Unit = {},
+    onStartResolutionTest: (DisplayResolutionScale) -> Unit = {},
+    onConfirmResolutionTest: () -> Unit = {},
+    onCancelResolutionTest: () -> Unit = {},
     onQuickBoost: () -> Unit,
-    feedbackMessage: String?
+    feedbackMessage: String?,
+    onDragStart: (Float, Float) -> Unit = { _, _ -> },
+    onDragMove: (Float, Float) -> Unit = { _, _ -> },
+    onDragEnd: () -> Unit = {},
+    onDrag: (Float, Float) -> Unit = { _, _ -> }
 ) {
     Box(
         modifier = Modifier
@@ -42,7 +54,11 @@ fun GameOverlayHudContent(
             FloatingGamerBubble(
                 fps = currentFps,
                 temp = metrics.cpuTempCelsius.toInt(),
-                onBubbleClick = onToggleExpand
+                onBubbleClick = onToggleExpand,
+                onDragStart = onDragStart,
+                onDragMove = onDragMove,
+                onDragEnd = onDragEnd,
+                onDrag = onDrag
             )
         } else {
             // Expanded In-Game Gaming Hub Panel
@@ -50,12 +66,23 @@ fun GameOverlayHudContent(
                 targetGameTitle = targetGameTitle,
                 fps = currentFps,
                 currentDriver = currentDriver,
+                currentDisplayScale = currentDisplayScale,
+                isTestingResolution = isTestingResolution,
+                testCountdownSeconds = testCountdownSeconds,
                 metrics = metrics,
                 onMinimize = onToggleExpand,
                 onClose = onCloseOverlay,
                 onDriverSelected = onDriverSelected,
+                onScaleSelected = onScaleSelected,
+                onStartResolutionTest = onStartResolutionTest,
+                onConfirmResolutionTest = onConfirmResolutionTest,
+                onCancelResolutionTest = onCancelResolutionTest,
                 onQuickBoost = onQuickBoost,
-                feedbackMessage = feedbackMessage
+                feedbackMessage = feedbackMessage,
+                onDragStart = onDragStart,
+                onDragMove = onDragMove,
+                onDragEnd = onDragEnd,
+                onDrag = onDrag
             )
         }
     }

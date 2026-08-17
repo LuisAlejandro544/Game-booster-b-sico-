@@ -1,0 +1,23 @@
+feat(hud): add in-game resolution & DPI scaling with 15-second live test mode
+
+- Add dedicated "Resolución" tab in floating In-Game Gamer HUD (HudResolutionTab.kt)
+- Support live switching between Native 100%, Balanced 85%, Performance 75%, and Ultra 50% resolution & DPI scales during gameplay
+- Implement 15-second interactive test mode directly inside HUD overlay with real-time countdown, Confirm, and Revert controls
+- Integrate display scaling actions in GameOverlayService and DraggableOverlayWindowManager backed by the 5-layer failsafe architecture
+
+fix(auth): resolve Google Play Services login restriction and Shell administration block
+
+- Ensure background app hibernation strictly protects all Google auth, login, and system packages (com.google.android.gms, com.google.android.gsf, com.android.vending, com.google.android.play.games)
+- Prevent accidental shell suspension (pm suspend) or process freezing (am set-inactive) on authentication frameworks
+- Add automatic system-wide recovery in MainActivity and BoosterViewModel to unsuspend and heal Google Play Services on app launch and resume
+- Guarantee smooth Google Play login across all games without "Managed by Shell" restrictions
+
+feat(resolution): implement real-time second-by-second toast countdown (15s..1s) for resolution testing
+- Create ResolutionCountdownNotifier for live ticking toasts (15, 14, 13, 12... down to 1s) with instant cancellation of previous toasts to prevent Android toast queues
+- Ensure notification feedback displays over full-screen games and works seamlessly during "Do Not Disturb" (No molestar) modes
+- Trigger automatic native restoration feedback and toast upon countdown expiration or explicit user cancellation
+
+fix(overlay): eliminate floating HUD jitter and wobble during screen dragging
+- Refactor DraggableOverlayWindowManager to track absolute screen-space coordinates (rawX, rawY)
+- Implement zero-jitter pointer tracking in FloatingGamerBubble and ExpandedGamerPanel via pointerInteropFilter
+- Decouple window position updates from relative touch deltas to ensure silky smooth 60/120Hz gesture physics

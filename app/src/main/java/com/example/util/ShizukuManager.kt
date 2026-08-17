@@ -191,8 +191,20 @@ object ShizukuManager {
         }
 
         // 2. Kill background non-system app hogs
-        for (pkg in backgroundPackagesToKill.take(8)) {
-            if (pkg != targetGamePackage && !pkg.contains("android") && !pkg.contains("launcher")) {
+        for (pkg in backgroundPackagesToKill.take(12)) {
+            val isProtected = pkg == targetGamePackage ||
+                pkg.contains("android") ||
+                pkg.contains("launcher") ||
+                pkg.contains("inputmethod") ||
+                pkg.startsWith("com.google.") ||
+                pkg.startsWith("com.android.") ||
+                pkg.contains("login") ||
+                pkg.contains("account") ||
+                pkg.contains("auth") ||
+                pkg.contains("gms") ||
+                pkg.contains("vending")
+
+            if (!isProtected) {
                 val killRes = executeShellCommand("am force-stop $pkg")
                 if (killRes.isSuccess) {
                     appsKilledCount++
