@@ -1,0 +1,47 @@
+package com.example.receiver
+
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.util.Log
+import com.example.data.BoosterPreferences
+import com.example.util.ShizukuManager
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+
+class BootRecoveryReceiver : BroadcastReceiver() {
+
+    override fun onReceive(context: Context, intent: Intent?) {
+        val action = intent?.action ?: return
+        if (action == Intent.ACTION_BOOT_COMPLETED || action == Intent.ACTION_MY_PACKAGE_REPLACED) {
+            Log.d(TAG, "Boot or package update detected. Checking system state fail-safe...")
+            val prefs = BoosterPreferences(context)
+
+            val activePkg = prefs.getActiveBoostedPackage()
+            val gmsSuspended = prefs.isGoogleServicesSuspended()
+
+            if (activePkg != null || gmsSuspended) {
+                CoroutineScope(Dispatchers.IO).launch {
+                    try {
+                        if (activePkg != null) {
+                            ShizukuManager.restoreGameGraphicsDriver(activePkg)
+                        }
+                        if (gmsSuspended) {
+                            ShizukuManager.restoreGooglePlayServices()
+                            prefs.setGoogleServicesSuspended(false)
+                        }
+                        prefs.setActiveBoostedPackage(null)
+                        Log.d(TAG, "Fail-safe recovery successfully restored system settings.")
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Fail-safe recovery error", e)
+                    }
+                }
+            }
+        }
+    }
+
+    companion object {
+        private const val TAG = "BootRecoveryReceiver"
+    }
+}

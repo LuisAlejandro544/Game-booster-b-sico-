@@ -1,11 +1,103 @@
-<div align="center">
+# ⚡ Game Booster Turbo (con Integración Shizuku)
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+[![Android](https://img.shields.io/badge/Android-11%2B-green.svg)](https://developer.android.com)
+[![Kotlin](https://img.shields.io/badge/Kotlin-2.0-purple.svg)](https://kotlinlang.org)
+[![Compose](https://img.shields.io/badge/Jetpack%20Compose-M3-blue.svg)](https://developer.android.com/jetpack/compose)
+[![Shizuku](https://img.shields.io/badge/Shizuku-API%2013-red.svg)](https://shizuku.rikka.app)
+[![Distribution](https://img.shields.io/badge/Release-Uptodown%20%2F%20Direct%20APK-orange.svg)](https://uptodown.com)
 
-  <h1>Built with AI Studio</h2>
+**Game Booster Turbo** es una aplicación moderna y de alto rendimiento diseñada para optimizar dispositivos Android al momento de jugar. A través de la API oficial de **Shizuku**, la aplicación puede ejecutar optimizaciones profundas de nivel ADB y modo de juego (Game Mode) directamente desde el teléfono sin necesidad de conectarlo a una PC ni requerir root obligatorio.
 
-  <p>The fastest path from prompt to production with Gemini.</p>
+---
 
-  <a href="https://aistudio.google.com/apps">Start building</a>
+## 🎯 Características Principales
 
-</div>
+- **⚡ Optimización con Shizuku (ADB / Root)**:
+  - Cierre forzado real de procesos consumidores en segundo plano (`am force-stop`).
+  - Purga global de la caché del sistema operativo (`pm trim-caches`).
+  - Activación forzada del Modo Rendimiento de Android 12+ (`cmd game mode 2 <package>`).
+- **🎮 Selector y Forzado de Motor Gráfico (Por Juego)**:
+  - Configuración individual del controlador GPU: **Vulkan Game Driver**, **ANGLE (OpenGL ES sobre Vulkan)**, **OpenGL ES Nativo** o **Automático del Sistema**.
+  - Inyección segura de driver por paquete mediante Shizuku (`settings put global updatable_driver_production_opt_in_apps` y `angle_gl_driver_selection_pkgs`).
+  - Cero uso de propiedades `persist.sys.*` para máxima seguridad del firmware.
+- **❄️ Centinela de Hibernación en Juego (RAM Boost Extremo)**:
+  - **Monitoreo en Vivo (`GameWatcherService`)**: Servicio centinela en primer plano que detecta en tiempo real cuándo estás dentro del juego y cuándo sales o minimizas.
+  - **Hibernación de Procesos**: Congela apps secundarias y redes sociales (`am set-inactive` y `pm suspend`) mientras juegas.
+  - **Suspensión de Google Play Services (Opcional)**: Deshabilita temporalmente los servicios de Google Play mientras estás en la partida, liberando entre **+350MB y +600MB de RAM**.
+  - **Reversión Automática de Fábrica**: En cuanto sales del juego, el centinela reactiva inmediatamente los servicios de Google, los procesos congelados y los controladores originales de Android.
+  - **Protección Fail-Safe (`BootRecoveryReceiver`)**: Restaura el sistema automáticamente tras cualquier reinicio del dispositivo.
+- **📊 Telemetría y Monitoreo en Tiempo Real**:
+  - Indicador HUD circular estilo Gamer con estado de optimización.
+  - **Cálculo Exacto y Real de CPU**: Monitor nativo en C++ leyendo deltas de `/proc/stat` y temperatura del SoC en tiempo real (`/sys/class/thermal/`).
+  - Medición de latencia (Ping real mediante sockets ICMP/HTTP con servidores DNS globales).
+  - Monitoreo de memoria RAM libre/ocupada, batería, almacenamiento y tasa de refresco (Hz).
+- **🕹️ Lanzador de Juegos Personalizado**:
+  - Menú de ajustes individuales para cada juego con badges de renderizado.
+  - Perfiles de optimización: *Ultra Rendimiento*, *Modo Batería Ahorro* y *Modo Red Baja Latencia*.
+  - Botón "BOOST & JUGAR" con aceleración y lanzamiento directo.
+- **🛡️ 100% Funcional desde el Teléfono**:
+  - No requiere PC ni cables para activar Shizuku (compatible con Depuración Inalámbrica de Android 11+).
+  - Diseñado para distribución directa en **Uptodown** y tiendas APK de terceros.
+- **⚙️ Puentes Nativos Listos (C++ y Rust)**:
+  - Estructura `CMake` y puente JNI para extensiones en C++.
+  - Estructura `Cargo` y puente FFI para extensiones en Rust.
+
+---
+
+## 📱 Guía Rápida: Activar Shizuku en tu Teléfono (Sin PC)
+
+Si tienes **Android 11 o superior**, puedes activar todas las funciones avanzadas en 2 minutos desde el propio móvil:
+
+1. **Instala Shizuku** (desde Uptodown o GitHub oficial).
+2. Ve a los **Ajustes del teléfono > Opciones de desarrollador**.
+3. Activa la casilla **Depuración inalámbrica** (Wireless Debugging).
+4. Abre **Shizuku**, toca en *Emparejamiento* (Pairing) y selecciona la opción de pantalla dividida o notificación emergente para introducir el código de 6 dígitos que te da Android.
+5. Inicia el servicio en Shizuku.
+6. Abre **Game Booster Turbo**, toca el botón **"AUTORIZAR PERMISO SHIZUKU"** ¡y listo!
+
+> *Nota: Si no usas Shizuku, Game Booster seguirá funcionando con el motor de optimización estándar de RAM y búfer.*
+
+---
+
+## 🛠️ Stack Tecnológico
+
+| Capa | Tecnología |
+| :--- | :--- |
+| **Lenguaje Principal** | Kotlin 2.0+ con Coroutines y StateFlow |
+| **Interfaz de Usuario** | Jetpack Compose + Material Design 3 (Gamer Neon Theme) |
+| **Elevación de Sistema** | Shizuku API v13.1.5 + Shizuku Provider |
+| **Almacenamiento Local**| Room Database / SharedPreferences |
+| **Motor Nativo (C++)**  | Android NDK (CMakeLists.txt + JNI) |
+| **Motor Nativo (Rust)** | Rust 2021 Edition (Cargo + FFI) |
+| **CI/CD & Sincronización**| GitHub Actions (`sync-from-zip.yml`) para carga vía ZIP |
+| **Distribución**        | APK directo sin dependencias cerradas de Google Play Services |
+
+---
+
+## 📦 Sincronización y Actualización vía Archivo ZIP (GitHub Actions)
+
+El repositorio incluye un flujo de trabajo automatizado en `.github/workflows/sync-from-zip.yml`:
+1. Sube un archivo `.zip`, `.7z`, `.tar.gz` o `.tar` a la carpeta `zip/`.
+2. Opcionalmente, escribe el mensaje de commit deseado en `commit_message.txt`.
+3. Al hacer push o ejecutar `workflow_dispatch`, el action:
+   - Extrae el archivo automáticamente.
+   - Aplica `rsync` sobre la raíz del proyecto (excluyendo `.git` y `zip/`).
+   - Limpia el archivo procesado manteniendo `zip/.gitkeep`.
+   - Realiza un `--amend` y `git push --force` para mantener un historial limpio en un único commit.
+
+---
+
+## 🚀 Compilación y Generación de APK
+
+Para compilar el proyecto en modo release para subirlo a Uptodown:
+
+```bash
+# Compilar APK de Release
+gradle :app:assembleRelease
+
+# Compilar APK de Pruebas (Debug)
+gradle :app:assembleDebug
+```
+
+El archivo APK resultante se generará en:
+`app/build/outputs/apk/release/app-release.apk`

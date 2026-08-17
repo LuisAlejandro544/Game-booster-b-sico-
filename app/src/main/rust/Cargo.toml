@@ -1,0 +1,18 @@
+[package]
+name = "gamebooster_rust_core"
+version = "0.1.0"
+edition = "2021"
+description = "Rust Native Core for high-performance memory analytics and game latency stabilization"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+jni = "0.21.1"
+libc = "0.2.155"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
