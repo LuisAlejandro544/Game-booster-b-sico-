@@ -7,6 +7,7 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
@@ -99,7 +100,15 @@ class GameWatcherService : Service() {
             "🔥 Modo Turbo Gamer Activo: $targetGameTitle",
             "Optimizando CPU, GPU, táctil, Wi-Fi, DND y RAM en vivo"
         )
-        startForeground(NOTIFICATION_ID, notification)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(
+                NOTIFICATION_ID,
+                notification,
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+            )
+        } else {
+            startForeground(NOTIFICATION_ID, notification)
+        }
 
         // Save active state to prefs
         prefs.setActiveBoostedPackage(targetPackage)
@@ -114,6 +123,9 @@ class GameWatcherService : Service() {
         monitoringJob?.cancel()
         monitoringJob = serviceScope.launch {
             val pkg = targetPackage ?: return@launch
+
+            // 0. Protect process with OOM Score (-1000) and Doze Whitelist via Shizuku
+            ShizukuManager.applyProcessImmunity(this@GameWatcherService)
 
             // 1. Initial Injection: Apply GPU driver
             ShizukuManager.applyGameGraphicsDriver(pkg, appliedDriver)
@@ -249,6 +261,9 @@ class GameWatcherService : Service() {
             ShizukuManager.restoreHibernatedPackages(bgPkgs)
             prefs.setCurrentlyHibernatedPackages(emptySet())
         }
+
+        // Restore process immunity whitelist
+        ShizukuManager.restoreProcessImmunity(this@GameWatcherService)
 
         prefs.setActiveBoostedPackage(null)
     }

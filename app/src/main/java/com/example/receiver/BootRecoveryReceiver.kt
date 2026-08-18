@@ -54,6 +54,7 @@ class BootRecoveryReceiver : BroadcastReceiver() {
                             ShizukuManager.restoreHibernatedPackages(hibernated)
                             prefs.setCurrentlyHibernatedPackages(emptySet())
                         }
+                        ShizukuManager.restoreProcessImmunity(context)
                         prefs.setActiveBoostedPackage(null)
                         Log.d(TAG, "Fail-safe recovery successfully restored system settings.")
                     } catch (e: Exception) {

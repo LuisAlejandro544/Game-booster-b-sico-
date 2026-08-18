@@ -28,6 +28,10 @@
     3. **Boot Recovery Automático**: Restablecimiento garantizado si el dispositivo se apaga o reinicia (`BootRecoveryReceiver`).
     4. **Clamping Proporcional Simétrico**: Ancho y alto calculados siempre en números pares y densidad DPI recalculada de forma milimétrica para evitar descalibración táctil o que los botones se vuelvan diminutos/gigantes.
     5. **Modo Prueba de 15 Segundos**: Prueba en vivo en la interfaz de configuración con cuenta regresiva interactiva y reversión automática si el usuario no confirma.
+- **🛡️ Blindaje Anti-Cierre y Prioridad Máxima (`ProcessImmunityController`)**:
+  - **Inmunidad OOM Score (-1000)**: Asigna la prioridad más alta de proceso a nivel de kernel mediante Shizuku para evitar que el *Low Memory Killer* (LMK) de Android cierre el centinela en juegos exigentes (Genshin Impact, Warzone, Free Fire).
+  - **Lista Blanca de Doze y AppOps**: Exime la app de optimizaciones agresivas de batería del fabricante (`dumpsys deviceidle whitelist +pkg` y `cmd appops set RUN_IN_BACKGROUND allow`).
+  - **Servicios de Primer Plano `specialUse`**: Cumplimiento estricto de Android 14/15 con `FOREGROUND_SERVICE_TYPE_SPECIAL_USE` en `GameWatcherService` y `GameOverlayService`.
 - **❄️ Centinela de Hibernación en Juego (RAM Boost Extremo)**:
   - **Monitoreo en Vivo (`GameWatcherService`)**: Servicio centinela en primer plano que detecta en tiempo real cuándo estás dentro del juego y cuándo sales o minimizas.
   - **Hibernación de Procesos con Lista de Excepciones**: Congela apps secundarias y redes sociales (`am set-inactive` y `pm suspend`) mientras juegas, con soporte completo para listas de excepciones (mantener apps despiertas) y objetivos específicos configurables.

@@ -1,7 +1,6 @@
-feat(turbo): implement touch boost, wi-fi anti-jitter optimizer, tactical crosshair overlay, and ui polish
+feat(shizuku): implement OOM score protection and special-use foreground service immunity
 
-- Touch Boost & Latencia Táctil: Overclock de velocidad de puntero a nivel 7, fijación de tasa de refresco máxima/120Hz y eliminación de latencia de animación con restauración automática
-- Wi-Fi Anti-Jitter Optimizer: Desactivación de suspensión de energía Wi-Fi por Shizuku para eliminar picos de lag y fluctuaciones de ping en partidas competitivas
-- Mira Gamer Táctica (Crosshair HUD): Superposición vectorial acelerada por hardware con múltiples estilos (Cruz, Punto, Círculo, Diamante) y colores neón
-- UI & Layout Fixes: Corrección de compresión de badges, ajuste de texto de chips y alineación de switches en `GameConfigSheet`
-- Failsafe Integration: Persistencia y restauración de fábrica en `GameWatcherService` y `BootRecoveryReceiver` ante reinicios del dispositivo
+- Blindaje de proceso y protección OOM Score (-1000) mediante Shizuku para evitar que Android LMK mate la app en juegos pesados
+- Inclusión automática en la lista blanca de Doze (`dumpsys deviceidle whitelist +pkg`) y concesión de AppOps en segundo plano
+- Integración estricta de `FOREGROUND_SERVICE_TYPE_SPECIAL_USE` en `GameWatcherService` y `GameOverlayService` para Android 14/15
+- Limpieza y restauración segura de políticas de proceso al salir de la partida y en `BootRecoveryReceiver`

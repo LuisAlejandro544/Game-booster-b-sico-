@@ -14,6 +14,7 @@ import com.example.util.shizuku.GamerDndController
 import com.example.util.shizuku.GraphicsDriverController
 import com.example.util.shizuku.NetworkOptimizerController
 import com.example.util.shizuku.ProcessHibernationController
+import com.example.util.shizuku.ProcessImmunityController
 import com.example.util.shizuku.ShellResult
 import com.example.util.shizuku.ShizukuState
 import com.example.util.shizuku.ShizukuStatus
@@ -305,6 +306,14 @@ object ShizukuManager {
 
     suspend fun restoreWifiSettings(context: Context): List<String> {
         return NetworkOptimizerController.restoreWifiSettings(context, isAuthorized)
+    }
+
+    suspend fun applyProcessImmunity(context: Context): ShellResult {
+        return ProcessImmunityController.applyProcessImmunity(context, isAuthorized)
+    }
+
+    suspend fun restoreProcessImmunity(context: Context): ShellResult {
+        return ProcessImmunityController.restoreProcessImmunity(context, isAuthorized)
     }
 
     suspend fun isAppInForeground(packageName: String): Boolean {
