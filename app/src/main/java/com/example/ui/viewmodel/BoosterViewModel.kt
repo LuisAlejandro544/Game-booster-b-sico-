@@ -149,12 +149,25 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
         val deepHib = prefs.getGameDeepHibernate(game.packageName)
         val hibGoogle = prefs.getGameHibernateGoogle(game.packageName)
         val overlayHud = prefs.getGameOverlayHud(game.packageName)
+        val dndEnabled = prefs.getGameDndEnabled(game.packageName)
+        val dndCalls = prefs.getDndAllowCalls()
+        val dndHeadsUp = prefs.getDndBlockHeadsUp()
+        val touchBoost = prefs.getGameTouchBoost(game.packageName)
+        val wifiHighPerf = prefs.getGameWifiHighPerf(game.packageName)
+        val crosshair = prefs.getGameCrosshairEnabled(game.packageName)
+
         _selectedGameForConfig.value = game.copy(
             graphicsDriver = currentDriver,
             displayScale = currentScale,
             deepBackgroundHibernate = deepHib,
             hibernateGoogleServices = hibGoogle,
-            enableOverlayHud = overlayHud
+            enableOverlayHud = overlayHud,
+            enableDnd = dndEnabled,
+            dndAllowCalls = dndCalls,
+            dndBlockHeadsUp = dndHeadsUp,
+            enableTouchBoost = touchBoost,
+            enableWifiHighPerf = wifiHighPerf,
+            enableCrosshair = crosshair
         )
     }
 
@@ -181,11 +194,15 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
         enableOverlayHud: Boolean,
         enableDnd: Boolean = true,
         dndAllowCalls: Boolean = true,
-        dndBlockHeadsUp: Boolean = true
+        dndBlockHeadsUp: Boolean = true,
+        enableTouchBoost: Boolean = true,
+        enableWifiHighPerf: Boolean = true,
+        enableCrosshair: Boolean = false
     ) {
         val updated = catalogManager.saveGameConfiguration(
             game, driver, displayScale, deepHibernate, hibernateGoogle, enableOverlayHud,
-            enableDnd, dndAllowCalls, dndBlockHeadsUp
+            enableDnd, dndAllowCalls, dndBlockHeadsUp,
+            enableTouchBoost, enableWifiHighPerf, enableCrosshair
         )
         _selectedGameForConfig.value = updated
     }

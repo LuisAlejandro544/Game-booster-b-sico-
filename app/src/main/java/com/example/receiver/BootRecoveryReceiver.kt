@@ -24,8 +24,10 @@ class BootRecoveryReceiver : BroadcastReceiver() {
             val gmsSuspended = prefs.isGoogleServicesSuspended()
             val customScaleActive = prefs.isCustomDisplayScaleActive()
             val dndActive = prefs.isDndActive()
+            val touchActive = prefs.isTouchBoostActive()
+            val wifiActive = prefs.isWifiHighPerfActive()
 
-            if (activePkg != null || gmsSuspended || customScaleActive || dndActive) {
+            if (activePkg != null || gmsSuspended || customScaleActive || dndActive || touchActive || wifiActive) {
                 CoroutineScope(Dispatchers.IO).launch {
                     try {
                         if (activePkg != null) {
@@ -41,11 +43,18 @@ class BootRecoveryReceiver : BroadcastReceiver() {
                         if (dndActive) {
                             GamerDndController.restoreDndSettings(context, ShizukuManager.isAuthorized)
                         }
+                        if (touchActive) {
+                            ShizukuManager.restoreTouchSettings(context)
+                        }
+                        if (wifiActive) {
+                            ShizukuManager.restoreWifiSettings(context)
+                        }
                         val hibernated = prefs.getCurrentlyHibernatedPackages().toList()
                         if (hibernated.isNotEmpty()) {
                             ShizukuManager.restoreHibernatedPackages(hibernated)
                             prefs.setCurrentlyHibernatedPackages(emptySet())
                         }
+                        ShizukuManager.restoreProcessImmunity(context)
                         prefs.setActiveBoostedPackage(null)
                         Log.d(TAG, "Fail-safe recovery successfully restored system settings.")
                     } catch (e: Exception) {

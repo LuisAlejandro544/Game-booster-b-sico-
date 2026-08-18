@@ -59,6 +59,9 @@ class GameBoostOrchestrator(
         val useDnd = targetGame?.let { prefs.getGameDndEnabled(it.packageName) } ?: true
         val dndCalls = prefs.getDndAllowCalls()
         val dndHeadsUp = prefs.getDndBlockHeadsUp()
+        val useTouchBoost = targetGame?.let { prefs.getGameTouchBoost(it.packageName) } ?: true
+        val useWifiHighPerf = targetGame?.let { prefs.getGameWifiHighPerf(it.packageName) } ?: true
+        val useCrosshair = targetGame?.let { prefs.getGameCrosshairEnabled(it.packageName) } ?: false
 
         val configuredGame = targetGame?.copy(
             graphicsDriver = driverToApply,
@@ -68,7 +71,10 @@ class GameBoostOrchestrator(
             enableOverlayHud = useOverlay,
             enableDnd = useDnd,
             dndAllowCalls = dndCalls,
-            dndBlockHeadsUp = dndHeadsUp
+            dndBlockHeadsUp = dndHeadsUp,
+            enableTouchBoost = useTouchBoost,
+            enableWifiHighPerf = useWifiHighPerf,
+            enableCrosshair = useCrosshair
         )
 
         val isShizukuReady = ShizukuManager.isAuthorized
@@ -80,9 +86,9 @@ class GameBoostOrchestrator(
                 "Conectando con Shizuku (ADB / Root)..." to 0.15f,
                 "Iniciando centinela de hibernación y failsafe de pantalla..." to 0.35f,
                 "Purgando caché del sistema (pm trim-caches)..." to 0.50f,
-                "Forzando motor de renderizado (${driverToApply.tag})..." to 0.70f,
-                (if (scaleToApply != DisplayResolutionScale.NATIVE_100) "Ajustando escala de resolución (${scaleToApply.tag})..." else "Optimizando subprocesos en segundo plano...") to 0.85f,
-                "Estabilizando latencia y búfer de red..." to 0.95f,
+                "Forzando motor de renderizado (${driverToApply.tag})..." to 0.65f,
+                (if (scaleToApply != DisplayResolutionScale.NATIVE_100) "Ajustando escala de resolución (${scaleToApply.tag})..." else "Acelerando tasa de muestreo táctil (120Hz/Touch Boost)...") to 0.80f,
+                "Estabilizando latencia y búfer de red Wi-Fi..." to 0.95f,
                 "¡Optimización Elevada Completada!" to 1.0f
             )
         } else {
@@ -129,6 +135,12 @@ class GameBoostOrchestrator(
                 if (scaleToApply != DisplayResolutionScale.NATIVE_100) {
                     allLogs.add("📱 Escala gráfica activada: ${scaleToApply.title} (5 Capas Failsafe)")
                 }
+                if (useTouchBoost) {
+                    allLogs.add("⚡ Touch Boost: Sensibilidad overclockeada a nivel 7 y muestreo 120Hz")
+                }
+                if (useWifiHighPerf) {
+                    allLogs.add("📶 Wi-Fi Anti-Jitter: Suspensión de chip desactivada para ping plano")
+                }
                 if (useDnd) {
                     allLogs.add("🔕 Modo No Molestar Gamer: Banners bloqueados y excepciones activas")
                 }
@@ -157,7 +169,9 @@ class GameBoostOrchestrator(
                 displayScale = scaleToApply,
                 enableDnd = useDnd,
                 dndAllowCalls = dndCalls,
-                dndBlockHeadsUp = dndHeadsUp
+                dndBlockHeadsUp = dndHeadsUp,
+                enableTouchBoost = useTouchBoost,
+                enableWifiHighPerf = useWifiHighPerf
             )
         }
 

@@ -10,8 +10,6 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
-import android.util.Log
-import android.view.Choreographer
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -24,25 +22,26 @@ import com.example.model.DeviceMetrics
 import com.example.model.DisplayResolutionScale
 import com.example.model.GraphicsDriver
 import com.example.service.overlay.DraggableOverlayWindowManager
+import com.example.service.overlay.FpsTracker
+import com.example.service.overlay.OverlayGamerActions
+import com.example.service.overlay.OverlayResolutionTester
 import com.example.ui.components.GameOverlayHudContent
 import com.example.ui.theme.GameBoosterTheme
-import com.example.util.ShizukuManager
 import com.example.util.SystemInfoHelper
-import com.example.util.shizuku.DisplayScaleController
-import com.example.util.shizuku.GamerDndController
-import com.example.util.shizuku.ResolutionCountdownNotifier
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 class GameOverlayService : Service() {
 
     private lateinit var overlayWindowManager: DraggableOverlayWindowManager
     private lateinit var prefs: BoosterPreferences
+    private lateinit var fpsTracker: FpsTracker
+    private lateinit var resolutionTester: OverlayResolutionTester
+    private lateinit var gamerActions: OverlayGamerActions
 
     private val serviceJob = Job()
     private val serviceScope = CoroutineScope(Dispatchers.Main + serviceJob)
@@ -69,37 +68,29 @@ class GameOverlayService : Service() {
     // Resolution Testing States
     private var isTestingResolution by mutableStateOf(false)
     private var testCountdownSeconds by mutableIntStateOf(15)
-    private var scaleBeforeTest: DisplayResolutionScale = DisplayResolutionScale.NATIVE_100
-    private var resolutionTestJob: Job? = null
-
-    // FPS Counter tracking
-    private var frameCount = 0
-    private var lastFpsTimestamp = 0L
-    private val frameCallback = object : Choreographer.FrameCallback {
-        override fun doFrame(frameTimeNanos: Long) {
-            val nowMs = frameTimeNanos / 1_000_000
-            if (lastFpsTimestamp == 0L) {
-                lastFpsTimestamp = nowMs
-            }
-
-            frameCount++
-            val delta = nowMs - lastFpsTimestamp
-            if (delta >= 1000) {
-                val calculated = (frameCount * 1000L / delta).toInt()
-                currentFps = calculated.coerceIn(15, 144)
-                frameCount = 0
-                lastFpsTimestamp = nowMs
-            }
-
-            Choreographer.getInstance().postFrameCallback(this)
-        }
-    }
 
     override fun onCreate() {
         super.onCreate()
         prefs = BoosterPreferences(this)
         overlayWindowManager = DraggableOverlayWindowManager(this)
         createNotificationChannel()
+
+        fpsTracker = FpsTracker { fps -> currentFps = fps }
+        resolutionTester = OverlayResolutionTester(this, serviceScope, prefs) { isTesting, countdown, activeScale, feedback ->
+            isTestingResolution = isTesting
+            testCountdownSeconds = countdown
+            currentDisplayScale = activeScale
+            if (feedback != null) {
+                feedbackMessage = feedback
+                serviceScope.launch {
+                    delay(3000L)
+                    feedbackMessage = null
+                }
+            }
+        }
+        gamerActions = OverlayGamerActions(this, serviceScope, prefs) { msg ->
+            feedbackMessage = msg
+        }
 
         // Load initial DND & Hibernation prefs
         isDndActive = targetPackage?.let { prefs.getGameDndEnabled(it) } ?: true
@@ -133,6 +124,7 @@ class GameOverlayService : Service() {
         } catch (_: Exception) {
             DisplayResolutionScale.NATIVE_100
         }
+        resolutionTester.setInitialScale(currentDisplayScale)
 
         targetPackage?.let {
             isDndActive = prefs.getGameDndEnabled(it)
@@ -184,19 +176,37 @@ class GameOverlayService : Service() {
                     hibernatedPackages = hibernatedPackages,
                     hibernationExceptions = hibernationExceptions,
                     onToggleDnd = { enabled ->
-                        toggleDndInGame(enabled)
+                        isDndActive = enabled
+                        gamerActions.toggleDnd(targetPackage, enabled, allowCalls, blockHeadsUp, dndExceptions)
                     },
                     onToggleBlockHeadsUp = { blocked ->
-                        toggleHeadsUpInGame(blocked)
+                        blockHeadsUp = blocked
+                        gamerActions.toggleHeadsUp(isDndActive, blocked, allowCalls, dndExceptions)
                     },
                     onToggleAllowCalls = { allowed ->
-                        toggleAllowCallsInGame(allowed)
+                        allowCalls = allowed
+                        gamerActions.toggleAllowCalls(isDndActive, allowed, blockHeadsUp, dndExceptions)
                     },
                     onToggleDndAppException = { pkg ->
-                        toggleDndAppExceptionInGame(pkg)
+                        gamerActions.toggleDndAppException(
+                            isDndActive = isDndActive,
+                            pkg = pkg,
+                            currentExceptions = dndExceptions,
+                            allowCalls = allowCalls,
+                            blockHeadsUp = blockHeadsUp
+                        ) { updated -> dndExceptions = updated }
                     },
                     onToggleAppHibernation = { pkg, shouldHibernate ->
-                        toggleAppHibernationInGame(pkg, shouldHibernate)
+                        gamerActions.toggleAppHibernation(
+                            targetPackage = targetPackage,
+                            pkg = pkg,
+                            shouldHibernate = shouldHibernate,
+                            hibernatedPackages = hibernatedPackages,
+                            hibernationExceptions = hibernationExceptions
+                        ) { updatedHib, updatedEx ->
+                            hibernatedPackages = updatedHib
+                            hibernationExceptions = updatedEx
+                        }
                     },
                     onToggleExpand = {
                         isExpanded = !isExpanded
@@ -205,21 +215,29 @@ class GameOverlayService : Service() {
                     onCloseOverlay = { stopSelf() },
                     onDriverSelected = { newDriver ->
                         currentDriver = newDriver
-                        applyDriverInGame(newDriver)
+                        gamerActions.applyDriver(targetPackage, newDriver)
                     },
                     onScaleSelected = { newScale ->
-                        applyScaleInGame(newScale)
+                        currentDisplayScale = newScale
+                        gamerActions.applyScale(targetPackage, newScale) {
+                            isExpanded = false
+                            overlayWindowManager.requestLayoutUpdate()
+                        }
                     },
                     onStartResolutionTest = { testScale ->
-                        startResolutionTestInGame(testScale)
+                        resolutionTester.startTest(testScale)
                     },
                     onConfirmResolutionTest = {
-                        confirmResolutionTestInGame()
+                        resolutionTester.confirmTest(targetPackage)
+                        isExpanded = false
+                        overlayWindowManager.requestLayoutUpdate()
                     },
                     onCancelResolutionTest = {
-                        cancelResolutionTestInGame()
+                        resolutionTester.cancelTest()
                     },
-                    onQuickBoost = { executeInGameQuickBoost() },
+                    onQuickBoost = {
+                        gamerActions.executeQuickBoost(targetPackage, hibernationExceptions)
+                    },
                     feedbackMessage = feedbackMessage,
                     onDragStart = { rawX, rawY ->
                         overlayWindowManager.onDragStart(rawX, rawY)
@@ -238,134 +256,8 @@ class GameOverlayService : Service() {
         }
     }
 
-    private fun toggleDndInGame(enabled: Boolean) {
-        isDndActive = enabled
-        targetPackage?.let { prefs.setGameDndEnabled(it, enabled) }
-        serviceScope.launch(Dispatchers.IO) {
-            try {
-                if (enabled) {
-                    ShizukuManager.applyGamerDnd(
-                        context = this@GameOverlayService,
-                        allowCalls = allowCalls,
-                        blockHeadsUp = blockHeadsUp,
-                        exceptions = dndExceptions
-                    )
-                    feedbackMessage = "🔕 Modo DND Gamer activado"
-                } else {
-                    GamerDndController.restoreDndSettings(this@GameOverlayService, ShizukuManager.isAuthorized)
-                    feedbackMessage = "🔔 Modo DND Gamer desactivado"
-                }
-                delay(3000L)
-                feedbackMessage = null
-            } catch (e: Exception) {
-                Log.e(TAG, "Error toggling DND in game", e)
-            }
-        }
-    }
-
-    private fun toggleHeadsUpInGame(blocked: Boolean) {
-        blockHeadsUp = blocked
-        prefs.setDndBlockHeadsUp(blocked)
-        if (isDndActive) {
-            serviceScope.launch(Dispatchers.IO) {
-                ShizukuManager.applyGamerDnd(
-                    context = this@GameOverlayService,
-                    allowCalls = allowCalls,
-                    blockHeadsUp = blocked,
-                    exceptions = dndExceptions
-                )
-                feedbackMessage = if (blocked) "🚫 Banners Heads-Up bloqueados" else "✓ Banners Heads-Up permitidos"
-                delay(2500L)
-                feedbackMessage = null
-            }
-        }
-    }
-
-    private fun toggleAllowCallsInGame(allowed: Boolean) {
-        allowCalls = allowed
-        prefs.setDndAllowCalls(allowed)
-        if (isDndActive) {
-            serviceScope.launch(Dispatchers.IO) {
-                ShizukuManager.applyGamerDnd(
-                    context = this@GameOverlayService,
-                    allowCalls = allowed,
-                    blockHeadsUp = blockHeadsUp,
-                    exceptions = dndExceptions
-                )
-                feedbackMessage = if (allowed) "📞 Llamadas entrantes permitidas" else "🔇 Llamadas silenciadas"
-                delay(2500L)
-                feedbackMessage = null
-            }
-        }
-    }
-
-    private fun toggleDndAppExceptionInGame(pkg: String) {
-        val current = dndExceptions.toMutableSet()
-        val isNowWhitelisted = if (current.contains(pkg)) {
-            current.remove(pkg)
-            false
-        } else {
-            current.add(pkg)
-            true
-        }
-        dndExceptions = current
-        prefs.setDndExceptions(current)
-
-        if (isDndActive) {
-            serviceScope.launch(Dispatchers.IO) {
-                ShizukuManager.applyGamerDnd(
-                    context = this@GameOverlayService,
-                    allowCalls = allowCalls,
-                    blockHeadsUp = blockHeadsUp,
-                    exceptions = current
-                )
-                feedbackMessage = if (isNowWhitelisted) "✓ Excepción DND agregada" else "✕ Excepción DND removida"
-                delay(2500L)
-                feedbackMessage = null
-            }
-        }
-    }
-
-    private fun toggleAppHibernationInGame(pkg: String, shouldHibernate: Boolean) {
-        serviceScope.launch(Dispatchers.IO) {
-            try {
-                val currentHib = hibernatedPackages.toMutableSet()
-                val currentEx = hibernationExceptions.toMutableSet()
-
-                if (shouldHibernate) {
-                    currentEx.remove(pkg)
-                    currentHib.add(pkg)
-                    prefs.removeHibernationException(pkg)
-                    prefs.addHibernationCustomTarget(pkg)
-                    ShizukuManager.hibernateBackgroundPackages(
-                        packages = listOf(pkg),
-                        excludePackage = targetPackage,
-                        exceptions = currentEx
-                    )
-                    feedbackMessage = "💤 App puesta en reposo"
-                } else {
-                    currentHib.remove(pkg)
-                    currentEx.add(pkg)
-                    prefs.addHibernationException(pkg)
-                    prefs.removeHibernationCustomTarget(pkg)
-                    ShizukuManager.restoreHibernatedPackages(listOf(pkg))
-                    feedbackMessage = "⚡ App despertada para segundo plano"
-                }
-
-                hibernatedPackages = currentHib
-                hibernationExceptions = currentEx
-                prefs.setCurrentlyHibernatedPackages(currentHib)
-
-                delay(2500L)
-                feedbackMessage = null
-            } catch (e: Exception) {
-                Log.e(TAG, "Error toggling app hibernation", e)
-            }
-        }
-    }
-
     private fun startTelemetryAndFpsTracking() {
-        Choreographer.getInstance().postFrameCallback(frameCallback)
+        fpsTracker.start()
 
         serviceScope.launch(Dispatchers.IO) {
             while (isActive) {
@@ -374,140 +266,6 @@ class GameOverlayService : Service() {
                     metricsState = m
                 } catch (_: Exception) {}
                 delay(2000L)
-            }
-        }
-    }
-
-    private fun applyDriverInGame(newDriver: GraphicsDriver) {
-        val pkg = targetPackage ?: return
-        serviceScope.launch(Dispatchers.IO) {
-            try {
-                prefs.setGameDriver(pkg, newDriver)
-                ShizukuManager.applyGameGraphicsDriver(pkg, newDriver)
-                feedbackMessage = "✓ Motor ${newDriver.displayName} aplicado"
-                delay(3000L)
-                feedbackMessage = null
-            } catch (e: Exception) {
-                Log.e(TAG, "Error applying driver in game", e)
-            }
-        }
-    }
-
-    private fun applyScaleInGame(newScale: DisplayResolutionScale) {
-        val pkg = targetPackage ?: return
-        serviceScope.launch(Dispatchers.IO) {
-            try {
-                currentDisplayScale = newScale
-                prefs.setGameDisplayScale(pkg, newScale)
-                DisplayScaleController.applyDisplayScale(
-                    context = this@GameOverlayService,
-                    scale = newScale,
-                    isAuthorized = ShizukuManager.isAuthorized
-                )
-                withContext(Dispatchers.Main) {
-                    isExpanded = false
-                    overlayWindowManager.requestLayoutUpdate()
-                }
-                feedbackMessage = "✓ Escala ${newScale.title} aplicada"
-                delay(3000L)
-                feedbackMessage = null
-            } catch (e: Exception) {
-                Log.e(TAG, "Error applying display scale in game", e)
-            }
-        }
-    }
-
-    private fun startResolutionTestInGame(testScale: DisplayResolutionScale) {
-        if (!ShizukuManager.isAuthorized) {
-            feedbackMessage = "⚠️ Requiere Shizuku autorizado"
-            return
-        }
-
-        resolutionTestJob?.cancel()
-        scaleBeforeTest = currentDisplayScale
-        currentDisplayScale = testScale
-        isTestingResolution = true
-        testCountdownSeconds = 15
-
-        resolutionTestJob = serviceScope.launch {
-            DisplayScaleController.applyDisplayScale(
-                context = this@GameOverlayService,
-                scale = testScale,
-                isAuthorized = ShizukuManager.isAuthorized
-            )
-
-            for (sec in 15 downTo 1) {
-                testCountdownSeconds = sec
-                ResolutionCountdownNotifier.showCountdownTick(this@GameOverlayService, sec, testScale)
-                delay(1000L)
-            }
-
-            if (isTestingResolution) {
-                cancelResolutionTestInGame()
-                ResolutionCountdownNotifier.showReverted(this@GameOverlayService)
-                feedbackMessage = "⏱️ Test finalizado: Escala revertida"
-                delay(3000L)
-                feedbackMessage = null
-            }
-        }
-    }
-
-    private fun confirmResolutionTestInGame() {
-        resolutionTestJob?.cancel()
-        isTestingResolution = false
-        ResolutionCountdownNotifier.showConfirmed(this@GameOverlayService, currentDisplayScale)
-        val pkg = targetPackage
-        if (pkg != null) {
-            prefs.setGameDisplayScale(pkg, currentDisplayScale)
-        }
-        isExpanded = false
-        overlayWindowManager.requestLayoutUpdate()
-        feedbackMessage = "✓ Escala ${currentDisplayScale.title} confirmada"
-        serviceScope.launch {
-            delay(3000L)
-            feedbackMessage = null
-        }
-    }
-
-    private fun cancelResolutionTestInGame() {
-        resolutionTestJob?.cancel()
-        isTestingResolution = false
-        ResolutionCountdownNotifier.cancel()
-        val prevScale = scaleBeforeTest
-        currentDisplayScale = prevScale
-        serviceScope.launch(Dispatchers.IO) {
-            DisplayScaleController.applyDisplayScale(
-                context = this@GameOverlayService,
-                scale = prevScale,
-                isAuthorized = ShizukuManager.isAuthorized
-            )
-        }
-    }
-
-    private fun executeInGameQuickBoost() {
-        serviceScope.launch(Dispatchers.IO) {
-            try {
-                val isShizuku = ShizukuManager.isAuthorized
-                val freed = if (isShizuku) 350L else 180L
-                prefs.addMemoryFreedMb(freed)
-                prefs.incrementBoostCount()
-
-                targetPackage?.let { pkg ->
-                    val installed = SystemInfoHelper.getInstalledAppsAndGames(this@GameOverlayService)
-                    val bgPkgs = installed.map { it.packageName }.filter { it != pkg }
-                    ShizukuManager.hibernateBackgroundPackages(
-                        packages = bgPkgs,
-                        excludePackage = pkg,
-                        exceptions = hibernationExceptions,
-                        customTargets = prefs.getHibernationCustomTargets()
-                    )
-                }
-
-                feedbackMessage = "⚡ +${freed}MB RAM liberados al vuelo"
-                delay(3000L)
-                feedbackMessage = null
-            } catch (e: Exception) {
-                Log.e(TAG, "Error executing in game quick boost", e)
             }
         }
     }
@@ -547,7 +305,8 @@ class GameOverlayService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
-        Choreographer.getInstance().removeFrameCallback(frameCallback)
+        fpsTracker.stop()
+        resolutionTester.cancel()
         overlayWindowManager.detachOverlay()
         serviceJob.cancel()
     }
@@ -555,7 +314,6 @@ class GameOverlayService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     companion object {
-        private const val TAG = "GameOverlayService"
         private const val CHANNEL_ID = "game_booster_overlay_channel"
         private const val NOTIFICATION_ID = 2002
 

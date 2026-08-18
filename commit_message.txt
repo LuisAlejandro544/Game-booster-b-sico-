@@ -1,9 +1,6 @@
-feat: automated gamer DND mode, app whitelist exceptions, and live HUD hibernation manager
+feat(shizuku): implement OOM score protection and special-use foreground service immunity
 
-- Add Gamer DND Mode (`GamerDndController`) via Shizuku shell control for `zen_mode` and `heads_up_notifications_enabled`
-- Support custom app whitelist exceptions and priority incoming phone calls pass-through
-- Add custom background app hibernation targets and wake exceptions manager in `BoosterPreferences` and `ProcessHibernationController`
-- Integrate DND and Hibernation management tabs into the floating in-game HUD (`HudDndTab`, `HudHibernationTab`) with real-time feedback
-- Update `GameConfigSheet`, `GameWatcherService`, and `GameBoostOrchestrator` to configure and automatically activate DND and hibernation on game launch
-- Guarantee full automated state restoration (DND, heads-up, suspended apps, GMS) upon game exit or process termination via `GameWatcherService` and `BootRecoveryReceiver`
-- Update all documentation files (README.md, ROADMAP.md, STRUCTURE.md, AI_CONTEXT.md)
+- Blindaje de proceso y protección OOM Score (-1000) mediante Shizuku para evitar que Android LMK mate la app en juegos pesados
+- Inclusión automática en la lista blanca de Doze (`dumpsys deviceidle whitelist +pkg`) y concesión de AppOps en segundo plano
+- Integración estricta de `FOREGROUND_SERVICE_TYPE_SPECIAL_USE` en `GameWatcherService` y `GameOverlayService` para Android 14/15
+- Limpieza y restauración segura de políticas de proceso al salir de la partida y en `BootRecoveryReceiver`

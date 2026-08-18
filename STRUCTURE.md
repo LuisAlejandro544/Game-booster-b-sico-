@@ -22,7 +22,15 @@ Este documento detalla la organización de directorios, capas de arquitectura mo
 │   │   │   ├── java/com/example/
 │   │   │   │   ├── MainActivity.kt          # Actividad principal y refresco de ciclo de vida
 │   │   │   │   ├── data/                    # Capa de datos y persistencia
-│   │   │   │   │   └── BoosterPreferences.kt# SharedPreferences / ajustes del usuario
+│   │   │   │   │   ├── BoosterPreferences.kt# Fachada unificada de persistencia SharedPreferences
+│   │   │   │   │   └── preferences/         # Módulos especializados de preferencias por dominio
+│   │   │   │   │       ├── GameConfigPreferences.kt   # Drivers GPU, escalas de resolución y flags por juego
+│   │   │   │   │       ├── GamerDndPreferences.kt     # Modo DND Gamer, llamadas, heads-up y excepciones
+│   │   │   │   │       ├── HibernationPreferences.kt  # Whitelist de excepciones y blacklist de hibernación
+│   │   │   │   │       ├── TouchPreferences.kt        # Overclock táctil (pointer_speed), 120Hz y animaciones
+│   │   │   │   │       ├── NetworkPreferences.kt      # Wi-Fi alto rendimiento y optimizaciones de energía
+│   │   │   │   │       ├── CrosshairPreferences.kt    # Retícula táctica, estilo, tamaño y color
+│   │   │   │   │       └── BoosterStatsPreferences.kt # Contador de optimizaciones y memoria RAM liberada
 │   │   │   │   ├── model/                   # Modelos de datos
 │   │   │   │   │   ├── DeviceMetrics.kt     # Métricas de RAM, batería, ping, pantalla
 │   │   │   │   │   ├── DisplayResolutionScale.kt # Perfiles y métricas de escala de resolución y DPI
@@ -33,16 +41,19 @@ Este documento detalla la organización de directorios, capas de arquitectura mo
 │   │   │   │   ├── service/                 # Servicios en segundo plano
 │   │   │   │   │   ├── GameWatcherService.kt# Centinela en juego: hibernación, resolución, monitoreo y reversión
 │   │   │   │   │   ├── GameOverlayService.kt# Servicio Foreground para HUD Flotante in-game
-│   │   │   │   │   └── overlay/             # Módulos del HUD Flotante
-│   │   │   │   │       ├── DraggableOverlayWindowManager.kt # Ventana flotante, layout y gestos táctiles de arrastre
-│   │   │   │   │       └── OverlayLifecycleOwner.kt         # Ciclo de vida y SavedStateRegistry para WindowManager
+│   │   │   │   │   └── overlay/             # Módulos del HUD Flotante y telemetría in-game
+│   │   │   │   │       ├── DraggableOverlayWindowManager.kt # Ventana flotante, layout y gestos de arrastre
+│   │   │   │   │       ├── OverlayLifecycleOwner.kt         # Ciclo de vida y SavedStateRegistry para WindowManager
+│   │   │   │   │       ├── FpsTracker.kt                    # Conteo de FPS en tiempo real vía Choreographer
+│   │   │   │   │       ├── OverlayResolutionTester.kt       # Cronómetro y auto-revert de 15s en prueba de resolución
+│   │   │   │   │       └── OverlayGamerActions.kt           # Acciones in-game: DND, hibernación, drivers y quick boost
 │   │   │   │   ├── ui/                      # Capa de Presentación (Jetpack Compose)
 │   │   │   │   │   ├── components/
 │   │   │   │   │   │   ├── AppPickerSheet.kt       # Selector de aplicaciones instaladas
 │   │   │   │   │   │   ├── BoostDialog.kt          # Diálogo con barra de progreso y reporte
 │   │   │   │   │   │   ├── BoostProfileSelector.kt # Selector de perfiles (Ultra/Batería/Red)
 │   │   │   │   │   │   ├── BoosterHeaderBar.kt     # Barra de encabezado, marca, estados y accesos directos
-│   │   │   │   │   │   ├── GameConfigSheet.kt      # Menú de ajuste: GPU Drivers y Escala de Resolución/DPI (5 capas)
+│   │   │   │   │   │   ├── GameConfigSheet.kt      # Menú modal orquestador de ajustes de rendimiento
 │   │   │   │   │   │   ├── GameLauncherSection.kt  # Cuadrícula y lista de juegos con badges de driver
 │   │   │   │   │   │   ├── GameOverlayHudView.kt   # Fachada coordinadora de la vista flotante in-game
 │   │   │   │   │   │   ├── GamerHudGauge.kt        # Tacómetro/indicador circular interactivo
@@ -50,6 +61,13 @@ Este documento detalla la organización de directorios, capas de arquitectura mo
 │   │   │   │   │   │   ├── QuickToolsBanner.kt     # Banner de limpieza rápida de memoria y optimización
 │   │   │   │   │   │   ├── ShizukuControlCard.kt   # Tarjeta de estado y permisos de Shizuku
 │   │   │   │   │   │   ├── SpeedTestDialog.kt      # Diagnóstico de latencia en vivo
+│   │   │   │   │   │   ├── sheet/                  # Subcomponentes modulares del menú de ajustes
+│   │   │   │   │   │   │   ├── SheetHeaderSection.kt              # Encabezado del juego y botón cerrar
+│   │   │   │   │   │   │   ├── SheetResolutionCountdownBanner.kt  # Banner de prueba de 15s con auto-revert
+│   │   │   │   │   │   │   ├── SheetDriversSection.kt             # Selección de Vulkan / ANGLE / OpenGL
+│   │   │   │   │   │   │   ├── SheetResolutionSection.kt          # Escala de resolución, DPI y 5 capas de seguridad
+│   │   │   │   │   │   │   ├── SheetAdvancedOptionsSection.kt     # Conmutadores: Hibernación, GMS, DND, Touch, Wi-Fi, Crosshair
+│   │   │   │   │   │   │   └── SheetActionButtons.kt              # Botones Guardar y Boost & Jugar
 │   │   │   │   │   │   └── overlay/                # Subcomponentes modulares del HUD Flotante
 │   │   │   │   │   │       ├── HudTypes.kt             # Enums de pestañas y utilidades de formato
 │   │   │   │   │   │       ├── FloatingGamerBubble.kt  # Burbuja flotante minimizada con animación de pulso
@@ -60,6 +78,8 @@ Este documento detalla la organización de directorios, capas de arquitectura mo
 │   │   │   │   │   │       ├── HudDndTab.kt            # Pestaña de Modo DND Gamer, bloqueo de heads-up y excepciones
 │   │   │   │   │   │       ├── HudHibernationTab.kt    # Pestaña de gestión de hibernación y lista de apps despiertas
 │   │   │   │   │   │       └── HudQuickBoostTab.kt     # Pestaña de Quick Boost instantáneo en partida
+│   │   │   │   │   ├── overlay/
+│   │   │   │   │   │   └── CrosshairOverlayView.kt # Retícula táctica vectorial acelerada por hardware
 │   │   │   │   │   ├── screens/
 │   │   │   │   │   │   └── BoosterHomeScreen.kt    # Pantalla principal limpia y orquestadora
 │   │   │   │   │   ├── theme/
@@ -84,6 +104,9 @@ Este documento detalla la organización de directorios, capas de arquitectura mo
 │   │   │   │       │   ├── GraphicsDriverController.kt      # Inyección aislada de drivers (Vulkan/ANGLE/OpenGL)
 │   │   │   │       │   ├── ProcessHibernationController.kt  # Suspensión de GMS, objetivos de reposo y excepciones
 │   │   │   │       │   ├── GamerDndController.kt            # Modo DND Gamer, bloqueo de heads-up y filtros
+│   │   │   │       │   ├── TouchResponseController.kt       # Overclock táctil a nivel 7, 120Hz/Max y 0 animación
+│   │   │   │       │   ├── NetworkOptimizerController.kt    # Desactivación de ahorro Wi-Fi y anti-jitter
+│   │   │   │       │   ├── ProcessImmunityController.kt     # Blindaje OOM Score (-1000) y whitelist Doze contra el LMK
 │   │   │   │       │   └── AppProcessInspector.kt           # Detección de apps en primer plano
 │   │   │   │       └── system/                  # Módulos especializados de telemetría de hardware
 │   │   │   │           ├── ThermalTelemetryReader.kt        # Lector de nodos térmicos `/sys/class/thermal/`
@@ -122,54 +145,97 @@ Este documento detalla la organización de directorios, capas de arquitectura mo
           ├── ThermalTelemetryReader          ├── AdbShellExecutor
           ├── NetworkPingTester               ├── GraphicsDriverController
           ├── InstalledAppScanner             ├── ProcessHibernationController
-          └── MemoryCacheCleaner              └── AppProcessInspector
+          └── MemoryCacheCleaner              ├── GamerDndController
+                                              ├── TouchResponseController
+                                              ├── NetworkOptimizerController
+                                              ├── ProcessImmunityController
+                                              └── AppProcessInspector
                     │
      [ NativeEngineBridge ]
      [ RustCoreBridge ]
                     │
                     ▼
-            [ BoosterViewModel ]
+             [ BoosterPreferences (Fachada) ]
+                    ├── GameConfigPreferences
+                    ├── GamerDndPreferences
+                    ├── HibernationPreferences
+                    ├── TouchPreferences
+                    ├── NetworkPreferences
+                    ├── CrosshairPreferences
+                    └── BoosterStatsPreferences
+                    │
+                    ▼
+             [ BoosterViewModel ]
                     ├── DeviceTelemetryManager (Polling & Ping)
                     ├── GameCatalogManager (Juegos & Preferencias)
                     └── GameBoostOrchestrator (Boost Pipeline)
                     │
                     ▼
-       [ BoosterHomeScreen (Jetpack Compose) ]
+        [ BoosterHomeScreen (Jetpack Compose) ]
                     │
-          ┌─────────┼─────────┬──────────────┐
-          ▼         ▼         ▼              ▼
-     [GamerHud] [Shizuku] [GameLauncher] [HeaderBar] [QuickTools]
+           ┌─────────┼─────────┬──────────────┐
+           ▼         ▼         ▼              ▼
+      [GamerHud] [Shizuku] [GameLauncher] [HeaderBar] [QuickTools]
+                    │
+                    ▼
+          [ GameConfigSheet (Orquestador Modal) ]
+                    ├── SheetHeaderSection
+                    ├── SheetResolutionCountdownBanner
+                    ├── SheetDriversSection
+                    ├── SheetResolutionSection
+                    ├── SheetAdvancedOptionsSection
+                    └── SheetActionButtons
 ```
 
 ### 🧩 Desglose de Responsabilidades Modulares:
 
-1. **Capa de Telemetría del Sistema (`util/system/`, `SystemInfoHelper.kt`, `native-lib.cpp`)**:
-   - `native-lib.cpp`: Telemetría nativa en C++ a cero asignaciones (*Zero-Alloc / Zero-GC Jank*) leyendo `/proc/stat` y `/sys/class/thermal/` con buffers en pila, además de calcular frametimes en nanosegundos (`CLOCK_MONOTONIC_RAW`), latencia media por fotograma y percentiles 1% Low FPS.
-   - `ThermalTelemetryReader`: Lectura a bajo nivel de la temperatura del procesador/SoC leyendo nodos térmicos reales del kernel Linux (`/sys/class/thermal/`).
-   - `NetworkPingTester`: Medición de latencia real contra servidores DNS globales de alta disponibilidad mediante sockets TCP/UDP.
-   - `InstalledAppScanner`: Escaneo eficiente del paquete de aplicaciones instaladas con detección heurística y por flags de juegos.
+1. **Capa de Persistencia Modular (`data/preferences/` y `BoosterPreferences.kt`)**:
+   - `BoosterPreferences`: Fachada unificada y limpia que centraliza el acceso a las preferencias del usuario.
+   - `GameConfigPreferences`: Maneja la configuración por juego (drivers Vulkan/ANGLE/OpenGL, escala de resolución y banderas de servicios).
+   - `GamerDndPreferences`: Gestiona el Modo No Molestar (DND), bloqueo de llamadas, bloqueo de heads-up y excepciones.
+   - `HibernationPreferences`: Administra listas de congelación profunda, whitelist de apps despiertas y blacklist personalizada.
+   - `TouchPreferences`: Almacena y restaura overclock táctil (`pointer_speed`), 120Hz/máxima tasa de refresco y animaciones.
+   - `NetworkPreferences`: Persistencia de Wi-Fi de alta performance y anti-jitter.
+   - `CrosshairPreferences`: Almacenamiento de estilo, tamaño, color y visibilidad de la retícula táctica.
+   - `BoosterStatsPreferences`: Registro acumulativo de sesiones optimizadas y megabytes de RAM liberados.
+
+2. **Capa de HUD Flotante y Servicios en Segundo Plano (`service/overlay/` y `GameOverlayService.kt`)**:
+   - `GameOverlayService`: Servicio en primer plano que administra el ciclo de vida del HUD flotante y las notificaciones persistentes.
+   - `FpsTracker`: Conteo no intrusivo de fotogramas por segundo en tiempo real mediante `Choreographer.FrameCallback`.
+   - `OverlayResolutionTester`: Administrador de pruebas de resolución de 15 segundos con cuenta regresiva y auto-revert failsafe.
+   - `OverlayGamerActions`: Ejecutor de acciones en partida (DND, hibernación selectiva, cambio de drivers y Quick Boost).
+   - `DraggableOverlayWindowManager`: Controla la ventana flotante en el `WindowManager` y los gestos táctiles de arrastre.
+   - `OverlayLifecycleOwner`: Ciclo de vida y SavedStateRegistry para renderizado Compose en ventana de sistema.
+
+3. **Capa de Componentes de Configuración (`ui/components/sheet/` y `GameConfigSheet.kt`)**:
+   - `GameConfigSheet`: Modal orquestador ultra limpio (<120 líneas) que ensambla las secciones de configuración.
+   - `SheetHeaderSection`: Encabezado con icono del juego, título y botón de cierre.
+   - `SheetResolutionCountdownBanner`: Banner dinámico de prueba de resolución con contador regresivo y auto-revert.
+   - `SheetDriversSection`: Selector visual interactivo para inyección de drivers gráficos (Vulkan, ANGLE, OpenGL).
+   - `SheetResolutionSection`: Selector de perfiles de escala de resolución y DPI con tarjeta explicativa del failsafe de 5 capas.
+   - `SheetAdvancedOptionsSection`: Conmutadores individuales de hibernación de procesos, suspensión de GMS, DND gamer, overclock táctil, Wi-Fi anti-jitter y crosshair táctico.
+   - `SheetActionButtons`: Botones ergonómicos de Guardar y Boost & Jugar.
+
+4. **Capa de Telemetría del Sistema (`util/system/`, `SystemInfoHelper.kt`, `native-lib.cpp`)**:
+   - `native-lib.cpp`: Telemetría nativa en C++ a cero asignaciones (*Zero-Alloc / Zero-GC Jank*) leyendo `/proc/stat` y `/sys/class/thermal/`.
+   - `ThermalTelemetryReader`: Lectura a bajo nivel de la temperatura del procesador/SoC en nodos térmicos reales del kernel Linux.
+   - `NetworkPingTester`: Medición de latencia real por sockets ICMP/DNS contra servidores globales.
+   - `InstalledAppScanner`: Escaneo eficiente del paquete de aplicaciones instaladas con categorización automática.
    - `MemoryCacheCleaner`: Vaciado de cachés temporales, invocación de GC y liberación segura de memoria RAM.
-   - `SystemInfoHelper`: Fachada unificada que ensambla todas las métricas en un objeto inmutable `DeviceMetrics`.
 
-2. **Capa de Control Shizuku (`util/shizuku/`)**:
-   - `AdbShellExecutor`: Ejecución asíncrona segura de comandos ADB por Binder (`Shizuku.newProcess`) con captura de stdout/stderr y exit codes.
-   - `GraphicsDriverController`: Inyección por paquete de controladores gráficos (`updatable_driver_production_opt_in_apps`, `angle_gl_driver_selection_pkgs`) y reversión garantizada sin tocar `persist.sys.*`.
-   - `ProcessHibernationController`: Suspensión y deshibernación de Google Play Services (`pm suspend` / `am set-inactive`), objetivos personalizados de reposo forzado y gestión de excepciones (apps despiertas).
-   - `GamerDndController`: Modo No Molestar automatizado, bloqueo de banners heads-up emergentes y persistencia/restauración de políticas de notificación.
-   - `AppProcessInspector`: Detección en tiempo real de la app en primer plano mediante `dumpsys activity` / `cmd activity`.
-   - `ShizukuManager`: Fachada unificada que administra el ciclo de vida del Binder y expone una API limpia hacia el resto de la aplicación.
+5. **Capa de Control Shizuku (`util/shizuku/`)**:
+   - `AdbShellExecutor`: Ejecución asíncrona segura de comandos ADB por Binder (`Shizuku.newProcess`).
+   - `GraphicsDriverController`: Inyección por paquete de controladores gráficos y reversión automática.
+   - `ProcessHibernationController`: Suspensión y deshibernación de Google Play Services y apps de fondo.
+   - `GamerDndController`: Modo No Molestar automatizado, bloqueo de banners heads-up y filtros.
+   - `TouchResponseController`: Overclock de sensibilidad táctil a nivel 7, 120Hz/máxima tasa de refresco y 0 animaciones.
+   - `NetworkOptimizerController`: Desactivación de ahorro de energía Wi-Fi para estabilidad anti-jitter.
+   - `ProcessImmunityController`: Inmunidad de proceso y protección contra el LMK (`oom_score_adj -1000` y whitelist Doze).
+   - `AppProcessInspector`: Detección en tiempo real del juego en primer plano.
+   - `ShizukuManager`: Fachada unificada que administra el ciclo de vida del Binder y expone una API limpia.
 
-3. **Capa de Lógica del ViewModel (`ui/viewmodel/modules/`)**:
-   - `DeviceTelemetryManager`: Gestiona el hilo periódico de refresco de telemetría de hardware y el test de ping en vivo.
-   - `GameCatalogManager`: Administra la consulta de aplicaciones instaladas, detección automática de juegos y almacenamiento de configuraciones por juego (DND, resolución, drivers e hibernación).
-   - `GameBoostOrchestrator`: Coordina la secuencia de animación y ejecución técnica de la optimización (limpieza de RAM/caché, ejecución ADB, cálculo de deltas y arranque del centinela).
-   - `BoosterViewModel`: Punto único de enlace para la UI en Jetpack Compose, manteniendo los `StateFlow` reactivos.
-
-4. **Capa de Presentación y HUD Flotante (`ui/components/overlay/` y `service/overlay/`)**:
-   - `FloatingGamerBubble`: Burbuja flotante animada con contador de FPS, temperatura de SoC y acceso rápido al panel.
-   - `ExpandedGamerPanel`: Panel expandible in-game con pestañas de telemetría, resolución/DPI, selector de drivers gráficos, modo DND, hibernación/excepciones y botón Quick Boost.
-   - `HudTelemetryTab`, `HudResolutionTab`, `HudDriversTab`, `HudDndTab`, `HudHibernationTab`, `HudQuickBoostTab`: Vistas modulares por pestaña con responsabilidad única.
-   - `GameOverlayHudView`: Punto de entrada que coordina el estado expandido/minimizado.
-   - `DraggableOverlayWindowManager`: Controla la adición/remoción de la vista flotante en el `WindowManager`, `LayoutParams` (`TYPE_APPLICATION_OVERLAY`) y el cálculo de gestos táctiles de arrastre en pantalla.
-   - `OverlayLifecycleOwner`: Suministra el ciclo de vida de Android (`LifecycleOwner`, `SavedStateRegistryOwner`, `ViewModelStoreOwner`) para renderizar componentes Jetpack Compose sobre el sistema.
-   - `BoosterHeaderBar` y `QuickToolsBanner`: Componentes visuales independientes de la pantalla principal.
+6. **Capa de Lógica del ViewModel (`ui/viewmodel/modules/`)**:
+   - `DeviceTelemetryManager`: Gestiona el hilo de telemetría de hardware y el test de ping en vivo.
+   - `GameCatalogManager`: Administra la consulta de aplicaciones instaladas y preferencias por juego.
+   - `GameBoostOrchestrator`: Coordina la secuencia y ejecución técnica del Boost.
+   - `BoosterViewModel`: Punto único de enlace para la UI en Jetpack Compose.

@@ -30,6 +30,16 @@ Este documento traza las fases de desarrollo y evolución de **Game Booster Turb
   - Lista de excepciones para apps críticas y conmutador de llamadas entrantes prioritarias.
   - Gestión directa desde la hoja de ajustes por juego y en vivo dentro del HUD flotante.
   - Reversión automática a los ajustes originales al salir del juego o reiniciar el teléfono.
+- [x] **Blindaje Anti-Cierre y Prioridad OOM (`ProcessImmunityController`)**:
+  - Inmunidad OOM Score a `-1000` vía Shizuku/ADB para evitar que el LMK mate el proceso durante juegos pesados.
+  - Inclusión en whitelist Doze y permisos AppOps de segundo plano para evitar suspensión por optimizadores de batería OEM.
+  - Tipos de servicio en primer plano `specialUse` en `GameWatcherService` y `GameOverlayService` según directivas de Android 14/15.
+- [x] **Touch Boost & Respuesta Táctil Ultrabaja (`TouchResponseController`)**:
+  - Overclock de velocidad de puntero (`pointer_speed 7`), fijación de tasa de refresco a 120Hz/máxima y reducción de latencia de animaciones con reversión automática.
+- [x] **Optimizador Wi-Fi Anti-Jitter (`NetworkOptimizerController`)**:
+  - Desactivación de suspensión de energía del chip Wi-Fi (`wifi_suspend_optimizations_enabled 0` y `set-low-latency-mode enabled`) para estabilidad de ping en multijugador online.
+- [x] **Mira Gamer Táctica Flotante (Crosshair HUD)**:
+  - Superposición de retícula de puntería personalizable en pantalla con estilos en cruz, punto, círculo y diamante con colores Neón Gamer.
 - [x] **Gestión de Hibernación y Excepciones de Apps en Vivo**:
   - Lista de apps despiertas (whitelist) y objetivos de reposo forzado (blacklist) accesibles desde el panel HUD.
   - Deshibernación y reposo instantáneo con feedback visual en pantalla.
@@ -48,7 +58,23 @@ Este documento traza las fases de desarrollo y evolución de **Game Booster Turb
 
 ---
 
-## 📍 Fase 4: Distribución y Ecosistema Abierto
+## 📍 Fase 4: Optimización Shell a Fondo (Deep Kernel & Hardware Tuning) 🧪
+- [ ] **Afinidad de Núcleos de CPU (`Taskset` & Big/Prime Cores)**:
+  - Forzar los hilos del proceso del juego a ejecutarse exclusivamente en los núcleos de máximo rendimiento (Big/Prime) mediante `taskset -p <cpu_mask> <PID>`, evitando que el scheduler de Android los mueva a núcleos LITTLE de bajo consumo.
+- [ ] **Afinación de SurfaceFlinger y Pipeline Gráfico (Zero-Latency)**:
+  - Eliminación de contrapresión de fotogramas (`setprop debug.sf.disable_backpressure 1`) para que la GPU entregue frames directamente sin retrasos de búfer.
+  - Supresión temporal de capas de composición pesadas del sistema mientras el juego esté en primer plano.
+- [ ] **Desfragmentación y Compactación de RAM en Vivo (`Memory Compaction Engine`)**:
+  - Purgado y compactación de memoria contigua (`echo 1 > /proc/sys/vm/compact_memory` y `cmd activity trim-memory <bg_apps> COMPLETE`) previo a la apertura del juego para erradicar el *stuttering* al cargar texturas masivas.
+- [ ] **Optimización Avanzada de Pila TCP/IP y Escaneo Wi-Fi**:
+  - Desactivación de escaneo periódico en segundo plano (`settings put global wifi_scan_always_enabled 0`) para eliminar micro-picos de ping cada 30 segundos.
+  - Sintonización de búferes de socket y modo de latencia ultrabaja en el stack de red.
+- [ ] **Control Térmico y Prevención de Estrangulamiento (Thermal Throttle Tuner)**:
+  - Monitor y mitigación de caídas bruscas de reloj mediante calibración de estados de `cmd thermalservice` para mantener frecuencias estables durante sesiones prolongadas.
+
+---
+
+## 📍 Fase 5: Distribución y Ecosistema Abierto
 - [ ] **Publicación en Uptodown**: Preparación de metadatos, capturas de pantalla de alta resolución y changelogs.
 - [ ] **Soporte de Actualización In-App Independiente**: Verificador de nuevas versiones APK desde repositorio GitHub / servidor sin depender de Google Play.
 - [ ] **Modo Root Nativo Adicional (Magisk / KernelSU / APatch)**: Soporte para comandos directos de su si el usuario dispone de root además de Shizuku.
