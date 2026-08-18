@@ -25,7 +25,14 @@ Este documento traza las fases de desarrollo y evolución de **Game Booster Turb
 - [x] **Gestión de Resolución y DPI por Juego (Failsafe en 5 Capas)**:
   - Selector de resolución y densidad (`wm size` / `wm density`) con perfiles: 100% Nativo, 85% Balance, 75% HD+ y 50% Ultra Fluidez.
   - Arquitectura blindada contra congelamientos del teléfono: Watchdog daemon shell (Dead-Man's switch 35s), Botón de Pánico permanente en notificación (`EmergencyResetReceiver`), receptor de reinicio (`BootRecoveryReceiver`), cálculo simétrico de pares de píxeles y prueba de 15 segundos con cuenta regresiva.
-- [ ] **Modo No Molestar Gamer (DND)**: Silenciado de notificaciones y llamadas entrantes durante partidas mediante permisos de política de notificaciones.
+- [x] **Modo No Molestar Gamer Automatizado (DND)**:
+  - Silenciado de notificaciones y bloqueo de banners emergentes (*heads-up*) mediante control de sistema Shizuku (`zen_mode` / `heads_up_notifications_enabled`).
+  - Lista de excepciones para apps críticas y conmutador de llamadas entrantes prioritarias.
+  - Gestión directa desde la hoja de ajustes por juego y en vivo dentro del HUD flotante.
+  - Reversión automática a los ajustes originales al salir del juego o reiniciar el teléfono.
+- [x] **Gestión de Hibernación y Excepciones de Apps en Vivo**:
+  - Lista de apps despiertas (whitelist) y objetivos de reposo forzado (blacklist) accesibles desde el panel HUD.
+  - Deshibernación y reposo instantáneo con feedback visual en pantalla.
 
 ---
 

@@ -152,17 +152,20 @@ fun BoosterHomeScreen(
             onCancelTest = {
                 viewModel.cancelResolutionTest()
             },
-            onSaveConfig = { driver, scale, deepHib, hibGoogle, overlayHud ->
-                viewModel.saveGameConfiguration(gameToConfig, driver, scale, deepHib, hibGoogle, overlayHud)
+            onSaveConfig = { driver, scale, deepHib, hibGoogle, overlayHud, dnd, allowCalls, blockHeadsUp ->
+                viewModel.saveGameConfiguration(gameToConfig, driver, scale, deepHib, hibGoogle, overlayHud, dnd, allowCalls, blockHeadsUp)
             },
-            onBoostAndLaunch = { game, driver, scale, deepHib, hibGoogle, overlayHud ->
+            onBoostAndLaunch = { game, driver, scale, deepHib, hibGoogle, overlayHud, dnd, allowCalls, blockHeadsUp ->
                 viewModel.triggerBoost(
                     targetGame = game,
                     forcedDriver = driver,
                     forcedDisplayScale = scale,
                     deepHibernate = deepHib,
                     hibernateGoogle = hibGoogle,
-                    enableOverlayHud = overlayHud
+                    enableOverlayHud = overlayHud,
+                    enableDnd = dnd,
+                    dndAllowCalls = allowCalls,
+                    dndBlockHeadsUp = blockHeadsUp
                 )
             },
             onDismiss = { viewModel.closeGameConfig() }

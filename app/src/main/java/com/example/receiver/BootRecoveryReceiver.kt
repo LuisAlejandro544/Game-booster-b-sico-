@@ -7,6 +7,7 @@ import android.util.Log
 import com.example.data.BoosterPreferences
 import com.example.util.ShizukuManager
 import com.example.util.shizuku.DisplayScaleController
+import com.example.util.shizuku.GamerDndController
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -22,8 +23,9 @@ class BootRecoveryReceiver : BroadcastReceiver() {
             val activePkg = prefs.getActiveBoostedPackage()
             val gmsSuspended = prefs.isGoogleServicesSuspended()
             val customScaleActive = prefs.isCustomDisplayScaleActive()
+            val dndActive = prefs.isDndActive()
 
-            if (activePkg != null || gmsSuspended || customScaleActive) {
+            if (activePkg != null || gmsSuspended || customScaleActive || dndActive) {
                 CoroutineScope(Dispatchers.IO).launch {
                     try {
                         if (activePkg != null) {
@@ -35,6 +37,14 @@ class BootRecoveryReceiver : BroadcastReceiver() {
                         }
                         if (customScaleActive) {
                             DisplayScaleController.resetDisplayScale(context)
+                        }
+                        if (dndActive) {
+                            GamerDndController.restoreDndSettings(context, ShizukuManager.isAuthorized)
+                        }
+                        val hibernated = prefs.getCurrentlyHibernatedPackages().toList()
+                        if (hibernated.isNotEmpty()) {
+                            ShizukuManager.restoreHibernatedPackages(hibernated)
+                            prefs.setCurrentlyHibernatedPackages(emptySet())
                         }
                         prefs.setActiveBoostedPackage(null)
                         Log.d(TAG, "Fail-safe recovery successfully restored system settings.")

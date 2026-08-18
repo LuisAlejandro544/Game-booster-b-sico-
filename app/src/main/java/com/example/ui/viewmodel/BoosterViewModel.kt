@@ -178,10 +178,14 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
         displayScale: DisplayResolutionScale,
         deepHibernate: Boolean,
         hibernateGoogle: Boolean,
-        enableOverlayHud: Boolean
+        enableOverlayHud: Boolean,
+        enableDnd: Boolean = true,
+        dndAllowCalls: Boolean = true,
+        dndBlockHeadsUp: Boolean = true
     ) {
         val updated = catalogManager.saveGameConfiguration(
-            game, driver, displayScale, deepHibernate, hibernateGoogle, enableOverlayHud
+            game, driver, displayScale, deepHibernate, hibernateGoogle, enableOverlayHud,
+            enableDnd, dndAllowCalls, dndBlockHeadsUp
         )
         _selectedGameForConfig.value = updated
     }
@@ -305,7 +309,10 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
         forcedDisplayScale: DisplayResolutionScale? = null,
         deepHibernate: Boolean? = null,
         hibernateGoogle: Boolean? = null,
-        enableOverlayHud: Boolean? = null
+        enableOverlayHud: Boolean? = null,
+        enableDnd: Boolean? = null,
+        dndAllowCalls: Boolean? = null,
+        dndBlockHeadsUp: Boolean? = null
     ) {
         if (_isBoosting.value) return
 
@@ -324,13 +331,25 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
         val useOverlay = enableOverlayHud
             ?: targetGame?.let { prefs.getGameOverlayHud(it.packageName) }
             ?: true
+        val useDnd = enableDnd
+            ?: targetGame?.let { prefs.getGameDndEnabled(it.packageName) }
+            ?: true
+        val useAllowCalls = dndAllowCalls
+            ?: targetGame?.dndAllowCalls
+            ?: prefs.getDndAllowCalls()
+        val useBlockHeadsUp = dndBlockHeadsUp
+            ?: targetGame?.dndBlockHeadsUp
+            ?: prefs.getDndBlockHeadsUp()
 
         val configuredGame = targetGame?.copy(
             graphicsDriver = driverToApply,
             displayScale = scaleToApply,
             deepBackgroundHibernate = useDeepHib,
             hibernateGoogleServices = useGoogleHib,
-            enableOverlayHud = useOverlay
+            enableOverlayHud = useOverlay,
+            enableDnd = useDnd,
+            dndAllowCalls = useAllowCalls,
+            dndBlockHeadsUp = useBlockHeadsUp
         )
 
         // Show floating HUD immediately if overlay permission is granted

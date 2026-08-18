@@ -33,8 +33,8 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
@@ -75,6 +75,17 @@ fun ExpandedGamerPanel(
     isTestingResolution: Boolean = false,
     testCountdownSeconds: Int = 15,
     metrics: DeviceMetrics,
+    isDndActive: Boolean = true,
+    blockHeadsUp: Boolean = true,
+    allowCalls: Boolean = true,
+    dndExceptions: Set<String> = emptySet(),
+    hibernatedPackages: Set<String> = emptySet(),
+    hibernationExceptions: Set<String> = emptySet(),
+    onToggleDnd: (Boolean) -> Unit = {},
+    onToggleBlockHeadsUp: (Boolean) -> Unit = {},
+    onToggleAllowCalls: (Boolean) -> Unit = {},
+    onToggleDndAppException: (String) -> Unit = {},
+    onToggleAppHibernation: (packageName: String, shouldHibernate: Boolean) -> Unit = { _, _ -> },
     onMinimize: () -> Unit,
     onClose: () -> Unit,
     onDriverSelected: (GraphicsDriver) -> Unit,
@@ -95,7 +106,7 @@ fun ExpandedGamerPanel(
     Card(
         modifier = Modifier
             .widthIn(min = 320.dp, max = 380.dp)
-            .heightIn(min = 180.dp, max = 300.dp)
+            .heightIn(min = 180.dp, max = 320.dp)
             .clip(RoundedCornerShape(16.dp))
             .border(
                 1.5.dp,
@@ -216,17 +227,20 @@ fun ExpandedGamerPanel(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Navigation Tabs with single-line labels
-            TabRow(
+            // Navigation Scrollable TabRow to fit all HUD tabs cleanly
+            ScrollableTabRow(
                 selectedTabIndex = selectedTab,
                 containerColor = GamerSurfaceElevated,
                 contentColor = NeonCyan,
+                edgePadding = 4.dp,
                 indicator = { tabPositions ->
-                    TabRowDefaults.SecondaryIndicator(
-                        modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
-                        color = NeonCyan,
-                        height = 2.5.dp
-                    )
+                    if (selectedTab < tabPositions.size) {
+                        TabRowDefaults.SecondaryIndicator(
+                            modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
+                            color = NeonCyan,
+                            height = 2.5.dp
+                        )
+                    }
                 },
                 divider = {},
                 modifier = Modifier
@@ -305,6 +319,21 @@ fun ExpandedGamerPanel(
                 // Active Tab Content
                 when (HudTab.entries[selectedTab]) {
                     HudTab.TELEMETRY -> HudTelemetryTab(fps = fps, metrics = metrics)
+                    HudTab.DND -> HudDndTab(
+                        isDndActive = isDndActive,
+                        blockHeadsUp = blockHeadsUp,
+                        allowCalls = allowCalls,
+                        dndExceptions = dndExceptions,
+                        onToggleDnd = onToggleDnd,
+                        onToggleBlockHeadsUp = onToggleBlockHeadsUp,
+                        onToggleAllowCalls = onToggleAllowCalls,
+                        onToggleAppException = onToggleDndAppException
+                    )
+                    HudTab.HIBERNATION -> HudHibernationTab(
+                        hibernatedPackages = hibernatedPackages,
+                        whitelistExceptions = hibernationExceptions,
+                        onToggleAppHibernation = onToggleAppHibernation
+                    )
                     HudTab.RESOLUTION -> HudResolutionTab(
                         currentScale = currentDisplayScale,
                         isTestingResolution = isTestingResolution,

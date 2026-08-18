@@ -10,6 +10,7 @@ import com.example.model.GraphicsDriver
 import com.example.util.shizuku.AdbShellExecutor
 import com.example.util.shizuku.AppProcessInspector
 import com.example.util.shizuku.ElevatedBoostReport
+import com.example.util.shizuku.GamerDndController
 import com.example.util.shizuku.GraphicsDriverController
 import com.example.util.shizuku.ProcessHibernationController
 import com.example.util.shizuku.ShellResult
@@ -247,12 +248,40 @@ object ShizukuManager {
         return ProcessHibernationController.restoreGooglePlayServices(isAuthorized)
     }
 
-    suspend fun hibernateBackgroundPackages(packages: List<String>, excludePackage: String?): List<String> {
-        return ProcessHibernationController.hibernateBackgroundPackages(packages, excludePackage, isAuthorized)
+    suspend fun hibernateBackgroundPackages(
+        packages: List<String>,
+        excludePackage: String?,
+        exceptions: Set<String> = emptySet(),
+        customTargets: Set<String> = emptySet()
+    ): Pair<List<String>, List<String>> {
+        return ProcessHibernationController.hibernateBackgroundPackages(
+            packages = packages,
+            excludePackage = excludePackage,
+            exceptions = exceptions,
+            customTargets = customTargets,
+            isAuthorized = isAuthorized
+        )
+    }
+
+    suspend fun toggleSingleAppHibernation(packageName: String, shouldHibernate: Boolean): Boolean {
+        return ProcessHibernationController.toggleSingleAppHibernation(packageName, shouldHibernate, isAuthorized)
     }
 
     suspend fun restoreHibernatedPackages(packages: List<String>): List<String> {
         return ProcessHibernationController.restoreHibernatedPackages(packages, isAuthorized)
+    }
+
+    suspend fun applyGamerDnd(
+        context: Context,
+        allowCalls: Boolean = true,
+        blockHeadsUp: Boolean = true,
+        exceptions: Set<String> = emptySet()
+    ): List<String> {
+        return GamerDndController.applyGamerDnd(context, allowCalls, blockHeadsUp, exceptions, isAuthorized)
+    }
+
+    suspend fun restoreGamerDnd(context: Context): List<String> {
+        return GamerDndController.restoreDndSettings(context, isAuthorized)
     }
 
     suspend fun isAppInForeground(packageName: String): Boolean {

@@ -56,13 +56,19 @@ class GameBoostOrchestrator(
         val useOverlay = enableOverlayHud
             ?: targetGame?.let { prefs.getGameOverlayHud(it.packageName) }
             ?: true
+        val useDnd = targetGame?.let { prefs.getGameDndEnabled(it.packageName) } ?: true
+        val dndCalls = prefs.getDndAllowCalls()
+        val dndHeadsUp = prefs.getDndBlockHeadsUp()
 
         val configuredGame = targetGame?.copy(
             graphicsDriver = driverToApply,
             displayScale = scaleToApply,
             deepBackgroundHibernate = useDeepHib,
             hibernateGoogleServices = useGoogleHib,
-            enableOverlayHud = useOverlay
+            enableOverlayHud = useOverlay,
+            enableDnd = useDnd,
+            dndAllowCalls = dndCalls,
+            dndBlockHeadsUp = dndHeadsUp
         )
 
         val isShizukuReady = ShizukuManager.isAuthorized
@@ -123,8 +129,12 @@ class GameBoostOrchestrator(
                 if (scaleToApply != DisplayResolutionScale.NATIVE_100) {
                     allLogs.add("📱 Escala gráfica activada: ${scaleToApply.title} (5 Capas Failsafe)")
                 }
+                if (useDnd) {
+                    allLogs.add("🔕 Modo No Molestar Gamer: Banners bloqueados y excepciones activas")
+                }
                 if (useDeepHib) {
-                    allLogs.add("❄️ Centinela activo: Hibernando apps secundarias en juego")
+                    val hibExceptionsCount = prefs.getHibernationExceptions().size
+                    allLogs.add("❄️ Centinela activo: Hibernando apps en segundo plano ($hibExceptionsCount protegidas)")
                 }
                 if (useGoogleHib) {
                     allLogs.add("💤 Google Play Services suspendido (+400MB RAM)")
@@ -144,7 +154,10 @@ class GameBoostOrchestrator(
                 driver = driverToApply,
                 hibernateGoogle = useGoogleHib,
                 deepHibernate = useDeepHib,
-                displayScale = scaleToApply
+                displayScale = scaleToApply,
+                enableDnd = useDnd,
+                dndAllowCalls = dndCalls,
+                dndBlockHeadsUp = dndHeadsUp
             )
         }
 

@@ -1,8 +1,9 @@
-fix(hud): add vertical scroll to overlay, redesign minimize button, and allow minimizing during resolution tests
+feat: automated gamer DND mode, app whitelist exceptions, and live HUD hibernation manager
 
-- Fix cramped UI layout on landscape/compact screens by adding `verticalScroll` to the HUD panel content and applying responsive height constraints
-- Redesign window minimize button with an intuitive cyan minus icon (`Icons.Default.Remove`) in a dedicated circular surface, clearly distinguishing it from the close button
-- Enable seamless HUD minimization during active 15-second resolution test mode without killing or disrupting the timer/service
-- Add live glowing amber countdown badge (`⏱️ Xs`) directly on `FloatingGamerBubble` when minimized during resolution testing
-- Prevent awkward tab title text wrapping (e.g., "Resoluc\nión") by refining tab layout with single-line text and tuned typography
-- Auto-minimize HUD panel to floating bubble upon directly applying or confirming a display resolution scale for seamless return to gameplay
+- Add Gamer DND Mode (`GamerDndController`) via Shizuku shell control for `zen_mode` and `heads_up_notifications_enabled`
+- Support custom app whitelist exceptions and priority incoming phone calls pass-through
+- Add custom background app hibernation targets and wake exceptions manager in `BoosterPreferences` and `ProcessHibernationController`
+- Integrate DND and Hibernation management tabs into the floating in-game HUD (`HudDndTab`, `HudHibernationTab`) with real-time feedback
+- Update `GameConfigSheet`, `GameWatcherService`, and `GameBoostOrchestrator` to configure and automatically activate DND and hibernation on game launch
+- Guarantee full automated state restoration (DND, heads-up, suspended apps, GMS) upon game exit or process termination via `GameWatcherService` and `BootRecoveryReceiver`
+- Update all documentation files (README.md, ROADMAP.md, STRUCTURE.md, AI_CONTEXT.md)

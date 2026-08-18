@@ -102,8 +102,8 @@ fun GameConfigSheet(
     onTestScale: (DisplayResolutionScale) -> Unit,
     onConfirmTest: (GameItem) -> Unit,
     onCancelTest: () -> Unit,
-    onSaveConfig: (GraphicsDriver, DisplayResolutionScale, Boolean, Boolean, Boolean) -> Unit,
-    onBoostAndLaunch: (GameItem, GraphicsDriver, DisplayResolutionScale, Boolean, Boolean, Boolean) -> Unit,
+    onSaveConfig: (GraphicsDriver, DisplayResolutionScale, Boolean, Boolean, Boolean, Boolean, Boolean, Boolean) -> Unit,
+    onBoostAndLaunch: (GameItem, GraphicsDriver, DisplayResolutionScale, Boolean, Boolean, Boolean, Boolean, Boolean, Boolean) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -113,6 +113,9 @@ fun GameConfigSheet(
     var deepHibernate by remember(game) { mutableStateOf(game.deepBackgroundHibernate) }
     var hibernateGoogle by remember(game) { mutableStateOf(game.hibernateGoogleServices) }
     var enableOverlayHud by remember(game) { mutableStateOf(game.enableOverlayHud) }
+    var enableDnd by remember(game) { mutableStateOf(game.enableDnd) }
+    var dndAllowCalls by remember(game) { mutableStateOf(game.dndAllowCalls) }
+    var dndBlockHeadsUp by remember(game) { mutableStateOf(game.dndBlockHeadsUp) }
 
     val bitmap = remember(game.iconDrawable) {
         game.iconDrawable?.let { drawableToBitmap(it) }
@@ -653,6 +656,152 @@ fun GameConfigSheet(
                 }
             }
 
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Switch 4: Gamer DND Mode (No Molestar Automatizado)
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .border(
+                        1.dp,
+                        if (enableDnd) NeonAmber.copy(alpha = 0.6f) else GamerCardBorder,
+                        RoundedCornerShape(10.dp)
+                    )
+                    .clickable { enableDnd = !enableDnd },
+                colors = CardDefaults.cardColors(
+                    containerColor = if (enableDnd) GamerSurfaceElevated else GamerCardBackground
+                )
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Bedtime,
+                            contentDescription = null,
+                            tint = if (enableDnd) NeonAmber else TextMuted,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Text(
+                                    text = "Modo No Molestar Gamer (DND)",
+                                    style = MaterialTheme.typography.labelMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = TextPrimary
+                                    )
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(NeonAmber.copy(alpha = 0.2f))
+                                        .padding(horizontal = 4.dp, vertical = 1.dp)
+                                ) {
+                                    Text(
+                                        text = "AUTO",
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontSize = 8.sp,
+                                            fontWeight = FontWeight.Black
+                                        ),
+                                        color = NeonAmber
+                                    )
+                                }
+                            }
+                            Text(
+                                text = "Silencia distracciones y bloquea banners emergentes mientras juegas. Restaura el estado al salir.",
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    fontSize = 10.sp,
+                                    color = TextSecondary,
+                                    lineHeight = 13.sp
+                                )
+                            )
+                        }
+                        Switch(
+                            checked = enableDnd,
+                            onCheckedChange = { enableDnd = it },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = GamerDarkBackground,
+                                checkedTrackColor = NeonAmber,
+                                uncheckedThumbColor = TextMuted,
+                                uncheckedTrackColor = GamerSurfaceElevated
+                            )
+                        )
+                    }
+
+                    if (enableDnd) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Card(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .clickable { dndAllowCalls = !dndAllowCalls },
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (dndAllowCalls) NeonAmber.copy(alpha = 0.15f) else GamerCardBackground
+                                ),
+                                border = BorderStroke(1.dp, if (dndAllowCalls) NeonAmber.copy(alpha = 0.5f) else GamerCardBorder)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Text(
+                                        text = if (dndAllowCalls) "✓ Llamadas Permitidas" else "✕ Bloquear Llamadas",
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (dndAllowCalls) NeonAmber else TextMuted
+                                        )
+                                    )
+                                }
+                            }
+
+                            Card(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .clickable { dndBlockHeadsUp = !dndBlockHeadsUp },
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (dndBlockHeadsUp) NeonCyan.copy(alpha = 0.15f) else GamerCardBackground
+                                ),
+                                border = BorderStroke(1.dp, if (dndBlockHeadsUp) NeonCyan.copy(alpha = 0.5f) else GamerCardBorder)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Text(
+                                        text = if (dndBlockHeadsUp) "✓ Ocultar Banners" else "✕ Mostrar Banners",
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (dndBlockHeadsUp) NeonCyan else TextMuted
+                                        )
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.height(20.dp))
 
             // Action Buttons
@@ -662,7 +811,7 @@ fun GameConfigSheet(
             ) {
                 OutlinedButton(
                     onClick = {
-                        onSaveConfig(selectedDriver, selectedScale, deepHibernate, hibernateGoogle, enableOverlayHud)
+                        onSaveConfig(selectedDriver, selectedScale, deepHibernate, hibernateGoogle, enableOverlayHud, enableDnd, dndAllowCalls, dndBlockHeadsUp)
                         onDismiss()
                     },
                     shape = RoundedCornerShape(10.dp),
@@ -681,7 +830,7 @@ fun GameConfigSheet(
 
                 Button(
                     onClick = {
-                        onBoostAndLaunch(game, selectedDriver, selectedScale, deepHibernate, hibernateGoogle, enableOverlayHud)
+                        onBoostAndLaunch(game, selectedDriver, selectedScale, deepHibernate, hibernateGoogle, enableOverlayHud, enableDnd, dndAllowCalls, dndBlockHeadsUp)
                     },
                     shape = RoundedCornerShape(10.dp),
                     colors = ButtonDefaults.buttonColors(

@@ -30,10 +30,18 @@
     5. **Modo Prueba de 15 Segundos**: Prueba en vivo en la interfaz de configuración con cuenta regresiva interactiva y reversión automática si el usuario no confirma.
 - **❄️ Centinela de Hibernación en Juego (RAM Boost Extremo)**:
   - **Monitoreo en Vivo (`GameWatcherService`)**: Servicio centinela en primer plano que detecta en tiempo real cuándo estás dentro del juego y cuándo sales o minimizas.
-  - **Hibernación de Procesos**: Congela apps secundarias y redes sociales (`am set-inactive` y `pm suspend`) mientras juegas.
+  - **Hibernación de Procesos con Lista de Excepciones**: Congela apps secundarias y redes sociales (`am set-inactive` y `pm suspend`) mientras juegas, con soporte completo para listas de excepciones (mantener apps despiertas) y objetivos específicos configurables.
   - **Suspensión de Google Play Services (Opcional)**: Deshabilita temporalmente los servicios de Google Play mientras estás en la partida, liberando entre **+350MB y +600MB de RAM**.
-  - **Reversión Automática de Fábrica**: En cuanto sales del juego, el centinela reactiva inmediatamente los servicios de Google, los procesos congelados y los controladores originales de Android.
+  - **Reversión Automática de Fábrica**: En cuanto sales del juego o se cierra el proceso, el centinela reactiva inmediatamente los servicios de Google, los procesos congelados y los controladores originales de Android.
   - **Protección Fail-Safe (`BootRecoveryReceiver`)**: Restaura el sistema automáticamente tras cualquier reinicio del dispositivo.
+- **🔕 Modo No Molestar Gamer Automatizado (DND)**:
+  - **Bloqueo Inteligente de Notificaciones y Heads-Up**: Silencia alertas intrusivas y bloquea banners emergentes durante la partida mediante Shizuku (`zen_mode` y `heads_up_notifications_enabled`).
+  - **Lista Blanca de Excepciones**: Recibe notificaciones importantes de apps críticas que elijas (WhatsApp, Discord, etc.) sin interrumpir el juego.
+  - **Pase de Llamadas Prioritarias**: Filtra o permite llamadas telefónicas entrantes según tu preferencia.
+  - **Restauración Automática**: Devuelve el modo DND y los banners emergentes a sus valores originales al terminar la partida.
+- **🎛️ HUD Flotante Gamer In-Game (`GameOverlayService`)**:
+  - **Burbuja Flotante Arrastrable**: Monitor de FPS en vivo, temperatura de SoC y uso de RAM sobre cualquier juego.
+  - **Panel Desplegable con Pestañas**: Cambia controladores GPU (Vulkan, ANGLE, OpenGL), prueba o ajusta resoluciones/DPI, conmuta el Modo DND y gestiona la hibernación de aplicaciones al vuelo sin pausar la partida.
 - **📊 Telemetría y Monitoreo en Tiempo Real**:
   - Indicador HUD circular estilo Gamer con estado de optimización.
   - **Cálculo Exacto y Real de CPU**: Monitor nativo en C++ leyendo deltas de `/proc/stat` y temperatura del SoC en tiempo real (`/sys/class/thermal/`).

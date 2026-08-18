@@ -2,7 +2,7 @@ name: Auto Generate PR Title & Description
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [opened]
 
 concurrency:
   group: auto-pr-desc-${{ github.event.pull_request.number }}
@@ -61,161 +61,146 @@ jobs:
           fi
 
           echo "has_commits=true" >> $GITHUB_OUTPUT
-          
-          # Save commits to temporary file to avoid bash multiline escaping issues
           echo "$COMMIT_LIST" > /tmp/pr_commits.txt
           echo "Extracted PR commits:"
           cat /tmp/pr_commits.txt
 
-      - name: Generate PR Description (AI or Smart Parser)
+      - name: Generate PR Description via AI
         if: steps.get-commits.outputs.has_commits == 'true'
         id: generate
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          COMMITS_RAW=$(cat /tmp/pr_commits.txt)
-          
-          # 1. Primary: OpenRouter with dots-studio/dots-3-note-preview:free
-          if [ -n "$OPENROUTER_API_KEY" ]; then
-            echo "Using OpenRouter API with model dots-studio/dots-3-note-preview:free (with Reasoning enabled)..."
-            
-            SYSTEM_PROMPT="Eres un tech lead senior. Analiza la siguiente lista de commits nuevos de un Pull Request y genera:
-1. Primera línea: Un título conciso en formato Conventional Commits (ej. feat(hud): optimize resolution controls and layout).
-2. Línea en blanco.
-3. Cuerpo en Markdown estructurado:
-   - ## 📋 Resumen de Cambios (2-3 oraciones ejecutivas de lo que hace este PR)
-   - ## 🚀 Funcionalidades y Mejoras (Lista con viñetas claras)
-   - ## 🛠️ Detalles Técnicos (Módulos o componentes tocados)
-   - ## 📦 Commits Incluidos
-No incluyas etiquetas \`\`\`markdown ni bloques de razonamiento internos en tu respuesta final."
+          python3 - << 'PYEOF'
+          import os
+          import sys
+          import json
+          import re
+          import urllib.request
+          import urllib.error
 
-            USER_CONTENT="Genera el título y descripción del PR para estos commits recientes:\n\n$COMMITS_RAW"
+          commits_path = "/tmp/pr_commits.txt"
+          if not os.path.exists(commits_path):
+              print("No commits file found.")
+              sys.exit(0)
 
-            jq -n \
-              --arg model "dots-studio/dots-3-note-preview:free" \
-              --arg system "$SYSTEM_PROMPT" \
-              --arg user "$USER_CONTENT" \
-              '{
-                model: $model,
-                messages: [
-                  { role: "system", content: $system },
-                  { role: "user", content: $user }
-                ],
-                reasoning: {
-                  effort: "high",
-                  exclude: true
-                },
-                temperature: 0.2,
-                max_tokens: 3000
-              }' > /tmp/openrouter_payload.json
+          with open(commits_path, "r", encoding="utf-8") as f:
+              commits_raw = f.read().strip()
 
-            RESPONSE=$(curl -s -X POST \
-              "https://openrouter.ai/api/v1/chat/completions" \
-              -H "Authorization: Bearer $OPENROUTER_API_KEY" \
-              -H "Content-Type: application/json" \
-              -H "HTTP-Referer: https://github.com" \
-              -H "X-Title: GameBooster-AutoPR" \
-              -d @/tmp/openrouter_payload.json)
+          openrouter_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
+          gemini_key = os.environ.get("GEMINI_API_KEY", "").strip()
 
-            RAW_AI_TEXT=$(echo "$RESPONSE" | jq -r '.choices[0].message.content // empty')
+          system_prompt = (
+              "Eres un tech lead senior. Analiza la lista de commits de un Pull Request y genera:\n"
+              "1. Primera linea: Un titulo conciso en formato Conventional Commits (ej. feat(hud): optimize resolution controls).\n"
+              "2. Linea en blanco.\n"
+              "3. Cuerpo en Markdown estructurado:\n"
+              "   - ## 📋 Resumen de Cambios (2-3 oraciones ejecutivas de lo que hace este PR)\n"
+              "   - ## 🚀 Funcionalidades y Mejoras (Lista con vinetas claras)\n"
+              "   - ## 🛠️ Detalles Tecnicos (Modulos o componentes tocados)\n"
+              "   - ## 📦 Commits Incluidos\n"
+              "No incluyas etiquetas ```markdown ni bloques de razonamiento internos en tu respuesta."
+          )
 
-            if [ -n "$RAW_AI_TEXT" ] && [ "$RAW_AI_TEXT" != "null" ]; then
-              # Strip any <thought>...</thought> or <think>...</think> tags so reasoning never leaks into PR
-              AI_TEXT=$(python3 -c "
-import sys, re
-text = sys.stdin.read()
-text = re.sub(r'<(think|thought)>.*?</\1>', '', text, flags=re.DOTALL)
-text = re.sub(r'</?(think|thought)>', '', text)
-print(text.strip())
-" <<< "$RAW_AI_TEXT")
+          user_prompt = f"Genera el titulo y descripcion del PR para estos commits recientes:\n\n{commits_raw}"
+          generated_text = ""
 
-              if [ -n "$AI_TEXT" ]; then
-                echo "$AI_TEXT" > /tmp/pr_content.md
-              fi
-            else
-              echo "OpenRouter response did not return content. Response was:"
-              echo "$RESPONSE"
-            fi
-          fi
+          # 1. Primary Attempt: OpenRouter (dots-studio/dots-3-note-preview:free)
+          if openrouter_key:
+              try:
+                  print("Calling OpenRouter with dots-studio/dots-3-note-preview:free...")
+                  payload = {
+                      "model": "dots-studio/dots-3-note-preview:free",
+                      "messages": [
+                          {"role": "system", "content": system_prompt},
+                          {"role": "user", "content": user_prompt}
+                      ],
+                      "reasoning": {
+                          "effort": "high",
+                          "exclude": True
+                      },
+                      "temperature": 0.2,
+                      "max_tokens": 3000
+                  }
+                  req = urllib.request.Request(
+                      "https://openrouter.ai/api/v1/chat/completions",
+                      data=json.dumps(payload).encode("utf-8"),
+                      headers={
+                          "Authorization": f"Bearer {openrouter_key}",
+                          "Content-Type": "application/json",
+                          "HTTP-Referer": "https://github.com",
+                          "X-Title": "GameBooster-AutoPR"
+                      }
+                  )
+                  with urllib.request.urlopen(req, timeout=45) as resp:
+                      data = json.loads(resp.read().decode("utf-8"))
+                      generated_text = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+              except Exception as e:
+                  print(f"OpenRouter call failed: {e}")
 
-          # 2. Secondary Fallback: Gemini API
-          if [ ! -f /tmp/pr_content.md ] && [ -n "$GEMINI_API_KEY" ]; then
-            echo "Falling back to Gemini API..."
-            
-            PROMPT=$(cat << 'EOF'
-Eres un tech lead senior. Analiza la siguiente lista de commits nuevos de un Pull Request y genera:
-1. Primera línea: Un título conciso en formato Conventional Commits (ej. feat(hud): optimize resolution controls and layout).
-2. Línea en blanco.
-3. Cuerpo en Markdown estructurado:
-   - ## 📋 Resumen de Cambios (2-3 oraciones ejecutivas de lo que hace este PR)
-   - ## 🚀 Funcionalidades y Mejoras (Lista con viñetas claras)
-   - ## 🛠️ Detalles Técnicos (Módulos o componentes tocados)
-   - ## 📦 Commits Incluidos
-No incluyas etiquetas ```markdown al principio o final.
-EOF
-)
-            jq -n \
-              --arg prompt "$PROMPT" \
-              --arg commits "$COMMITS_RAW" \
-              '{
-                contents: [{
-                  parts: [
-                    { text: ($prompt + "\n\nCommits del PR:\n" + $commits) }
-                  ]
-                }],
-                generationConfig: {
-                  temperature: 0.2,
-                  maxOutputTokens: 1500
-                }
-              }' > /tmp/gemini_payload.json
+          # 2. Fallback Attempt: Gemini API
+          if not generated_text and gemini_key:
+              try:
+                  print("Calling Gemini API fallback...")
+                  gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={gemini_key}"
+                  payload = {
+                      "contents": [{
+                          "parts": [{"text": f"{system_prompt}\n\n{user_prompt}"}]
+                      }],
+                      "generationConfig": {
+                          "temperature": 0.2,
+                          "maxOutputTokens": 2000
+                      }
+                  }
+                  req = urllib.request.Request(
+                      gemini_url,
+                      data=json.dumps(payload).encode("utf-8"),
+                      headers={"Content-Type": "application/json"}
+                  )
+                  with urllib.request.urlopen(req, timeout=45) as resp:
+                      data = json.loads(resp.read().decode("utf-8"))
+                      generated_text = data.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "")
+              except Exception as e:
+                  print(f"Gemini API call failed: {e}")
 
-            RESPONSE=$(curl -s -X POST \
-              "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$GEMINI_API_KEY" \
-              -H "Content-Type: application/json" \
-              -d @/tmp/gemini_payload.json)
+          # 3. Fallback Attempt: Local Structure
+          if not generated_text:
+              print("Using local parser fallback...")
+              first_line = commits_raw.splitlines()[0].lstrip("- ") if commits_raw else "chore: update pull request changes"
+              generated_text = (
+                  f"{first_line}\n\n"
+                  f"## 📋 Resumen del Pull Request\n"
+                  f"Este Pull Request consolida los cambios y mejoras recientes del proyecto según el historial de commits.\n\n"
+                  f"## 🚀 Cambios Implementados\n"
+                  f"{commits_raw}\n\n"
+                  f"---\n*Generado automáticamente por GitHub Actions basándose en los commits del PR.*"
+              )
 
-            AI_TEXT=$(echo "$RESPONSE" | jq -r '.candidates[0].content.parts[0].text // empty')
+          # Clean any reasoning tags (<thought>, <think>)
+          cleaned = re.sub(r'<(think|thought)>.*?</\1>', '', generated_text, flags=re.DOTALL)
+          cleaned = re.sub(r'</?(think|thought)>', '', cleaned).strip()
 
-            if [ -n "$AI_TEXT" ] && [ "$AI_TEXT" != "null" ]; then
-              echo "$AI_TEXT" > /tmp/pr_content.md
-            fi
-          fi
+          lines = cleaned.splitlines()
+          title = lines[0].replace("#", "").strip() if lines else "chore: update pull request"
+          body = "\n".join(lines[1:]).strip() if len(lines) > 1 else "No description provided."
 
-          # 3. Fallback: Local Structured Parser
-          if [ ! -f /tmp/pr_content.md ]; then
-            echo "Generating structured PR description from commit messages..."
-            FIRST_COMMIT_TITLE=$(head -n 1 /tmp/pr_commits.txt | sed 's/^- //')
-            
-            cat << EOF > /tmp/pr_content.md
-$FIRST_COMMIT_TITLE
+          with open("/tmp/pr_title.txt", "w", encoding="utf-8") as f:
+              f.write(title)
+          with open("/tmp/pr_body.md", "w", encoding="utf-8") as f:
+              f.write(body)
 
-## 📋 Resumen del Pull Request
-Este Pull Request consolida los cambios y mejoras recientes del proyecto según el historial de commits de la rama.
-
-## 🚀 Cambios Implementados
-$(cat /tmp/pr_commits.txt)
-
----
-*Generado automáticamente por GitHub Actions basándose en los commits del PR.*
-EOF
-          fi
-
-          # Separate title (first line) and body (rest of lines)
-          PR_TITLE=$(head -n 1 /tmp/pr_content.md | sed 's/^#* //')
-          sed '1d' /tmp/pr_content.md > /tmp/pr_body.md
-
-          echo "title=$PR_TITLE" >> $GITHUB_OUTPUT
-          echo "Generated Title: $PR_TITLE"
+          print("Generated PR Title:", title)
+          PYEOF
 
       - name: Update Pull Request Title and Body
         if: steps.get-commits.outputs.has_commits == 'true'
         env:
           GH_TOKEN: ${{ steps.auth-token.outputs.TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-          PR_TITLE: ${{ steps.generate.outputs.title }}
         run: |
-          echo "Updating PR #$PR_NUMBER..."
+          PR_TITLE=$(cat /tmp/pr_title.txt)
+          echo "Updating PR #$PR_NUMBER with title: $PR_TITLE"
           gh pr edit "$PR_NUMBER" \
             --title "$PR_TITLE" \
             --body-file /tmp/pr_body.md

@@ -55,6 +55,9 @@ data class GameItem(
     val hibernateGoogleServices: Boolean = false,
     val deepBackgroundHibernate: Boolean = true,
     val enableOverlayHud: Boolean = true,
+    val enableDnd: Boolean = true,
+    val dndAllowCalls: Boolean = true,
+    val dndBlockHeadsUp: Boolean = true,
     val displayScale: DisplayResolutionScale = DisplayResolutionScale.NATIVE_100
 )
 

@@ -160,4 +160,159 @@ class BoosterPreferences(context: Context) {
         val total = getTotalMemoryFreedMb() + mb
         prefs.edit().putLong("total_freed_mb", total).apply()
     }
+
+    // ==========================================
+    // GAMER DND (NO MOLESTAR AUTOMATIZADO)
+    // ==========================================
+
+    fun getGameDndEnabled(packageName: String): Boolean {
+        return prefs.getBoolean("dnd_enabled_$packageName", true)
+    }
+
+    fun setGameDndEnabled(packageName: String, enabled: Boolean) {
+        prefs.edit().putBoolean("dnd_enabled_$packageName", enabled).apply()
+    }
+
+    fun isDndActive(): Boolean {
+        return prefs.getBoolean("dnd_is_active", false)
+    }
+
+    fun setDndActive(active: Boolean) {
+        prefs.edit().putBoolean("dnd_is_active", active).apply()
+    }
+
+    fun getDndAllowCalls(): Boolean {
+        return prefs.getBoolean("dnd_allow_calls", true)
+    }
+
+    fun setDndAllowCalls(allow: Boolean) {
+        prefs.edit().putBoolean("dnd_allow_calls", allow).apply()
+    }
+
+    fun getDndBlockHeadsUp(): Boolean {
+        return prefs.getBoolean("dnd_block_heads_up", true)
+    }
+
+    fun setDndBlockHeadsUp(block: Boolean) {
+        prefs.edit().putBoolean("dnd_block_heads_up", block).apply()
+    }
+
+    fun getDndExceptions(): Set<String> {
+        // Default exceptions: Telecom/Phone dialer, Discord, WhatsApp if user needs them
+        val defaultSet = setOf(
+            "com.google.android.dialer",
+            "com.android.dialer",
+            "com.samsung.android.dialer",
+            "com.discord",
+            "com.whatsapp"
+        )
+        return prefs.getStringSet("dnd_exceptions", defaultSet) ?: defaultSet
+    }
+
+    fun setDndExceptions(pkgs: Set<String>) {
+        prefs.edit().putStringSet("dnd_exceptions", pkgs).apply()
+    }
+
+    fun addDndException(pkg: String) {
+        val set = getDndExceptions().toMutableSet()
+        set.add(pkg)
+        setDndExceptions(set)
+    }
+
+    fun removeDndException(pkg: String) {
+        val set = getDndExceptions().toMutableSet()
+        set.remove(pkg)
+        setDndExceptions(set)
+    }
+
+    fun getSavedZenMode(): Int {
+        return prefs.getInt("saved_zen_mode", -1)
+    }
+
+    fun setSavedZenMode(mode: Int) {
+        prefs.edit().putInt("saved_zen_mode", mode).apply()
+    }
+
+    fun getSavedHeadsUp(): Int {
+        return prefs.getInt("saved_heads_up", -1)
+    }
+
+    fun setSavedHeadsUp(state: Int) {
+        prefs.edit().putInt("saved_heads_up", state).apply()
+    }
+
+    // ==========================================
+    // LISTA PERSONALIZADA DE HIBERNACIÓN
+    // ==========================================
+
+    /**
+     * Excepciones de hibernación: Apps que NUNCA deben hibernarse (Whitelist), como Discord, Spotify, etc.
+     */
+    fun getHibernationExceptions(): Set<String> {
+        val defaultExceptions = setOf(
+            "com.discord",
+            "com.spotify.music",
+            "com.whatsapp",
+            "org.telegram.messenger"
+        )
+        return prefs.getStringSet("hibernation_exceptions", defaultExceptions) ?: defaultExceptions
+    }
+
+    fun setHibernationExceptions(pkgs: Set<String>) {
+        prefs.edit().putStringSet("hibernation_exceptions", pkgs).apply()
+    }
+
+    fun addHibernationException(pkg: String) {
+        val set = getHibernationExceptions().toMutableSet()
+        set.add(pkg)
+        setHibernationExceptions(set)
+    }
+
+    fun removeHibernationException(pkg: String) {
+        val set = getHibernationExceptions().toMutableSet()
+        set.remove(pkg)
+        setHibernationExceptions(set)
+    }
+
+    /**
+     * Lista negra explícita de apps que el usuario desea hibernar específicamente al jugar.
+     */
+    fun getHibernationCustomTargets(): Set<String> {
+        return prefs.getStringSet("hibernation_custom_targets", emptySet()) ?: emptySet()
+    }
+
+    fun setHibernationCustomTargets(pkgs: Set<String>) {
+        prefs.edit().putStringSet("hibernation_custom_targets", pkgs).apply()
+    }
+
+    fun addHibernationTarget(pkg: String) {
+        val set = getHibernationCustomTargets().toMutableSet()
+        set.add(pkg)
+        setHibernationCustomTargets(set)
+    }
+
+    fun addHibernationCustomTarget(pkg: String) {
+        addHibernationTarget(pkg)
+    }
+
+    fun removeHibernationTarget(pkg: String) {
+        val set = getHibernationCustomTargets().toMutableSet()
+        set.remove(pkg)
+        setHibernationCustomTargets(set)
+    }
+
+    fun removeHibernationCustomTarget(pkg: String) {
+        removeHibernationTarget(pkg)
+    }
+
+    /**
+     * Registro de paquetes actualmente hibernados para deshibernación selectiva y en tiempo real.
+     */
+    fun getCurrentlyHibernatedPackages(): Set<String> {
+        return prefs.getStringSet("currently_hibernated_pkgs", emptySet()) ?: emptySet()
+    }
+
+    fun setCurrentlyHibernatedPackages(pkgs: Set<String>) {
+        prefs.edit().putStringSet("currently_hibernated_pkgs", pkgs).apply()
+    }
 }

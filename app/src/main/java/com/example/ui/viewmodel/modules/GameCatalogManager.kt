@@ -40,6 +40,9 @@ class GameCatalogManager(
                     val deepHib = prefs.getGameDeepHibernate(app.packageName)
                     val hibGoogle = prefs.getGameHibernateGoogle(app.packageName)
                     val overlayHud = prefs.getGameOverlayHud(app.packageName)
+                    val dndEnabled = prefs.getGameDndEnabled(app.packageName)
+                    val dndCalls = prefs.getDndAllowCalls()
+                    val dndHeadsUp = prefs.getDndBlockHeadsUp()
                     list.add(
                         app.copy(
                             graphicsDriver = savedDriver,
@@ -47,6 +50,9 @@ class GameCatalogManager(
                             deepBackgroundHibernate = deepHib,
                             hibernateGoogleServices = hibGoogle,
                             enableOverlayHud = overlayHud,
+                            enableDnd = dndEnabled,
+                            dndAllowCalls = dndCalls,
+                            dndBlockHeadsUp = dndHeadsUp,
                             isCustomAdded = true
                         )
                     )
@@ -73,20 +79,29 @@ class GameCatalogManager(
         displayScale: DisplayResolutionScale,
         deepHibernate: Boolean,
         hibernateGoogle: Boolean,
-        enableOverlayHud: Boolean
+        enableOverlayHud: Boolean,
+        enableDnd: Boolean = true,
+        dndAllowCalls: Boolean = true,
+        dndBlockHeadsUp: Boolean = true
     ): GameItem {
         prefs.setGameDriver(game.packageName, driver)
         prefs.setGameDisplayScale(game.packageName, displayScale)
         prefs.setGameDeepHibernate(game.packageName, deepHibernate)
         prefs.setGameHibernateGoogle(game.packageName, hibernateGoogle)
         prefs.setGameOverlayHud(game.packageName, enableOverlayHud)
+        prefs.setGameDndEnabled(game.packageName, enableDnd)
+        prefs.setDndAllowCalls(dndAllowCalls)
+        prefs.setDndBlockHeadsUp(dndBlockHeadsUp)
 
         val updatedGame = game.copy(
             graphicsDriver = driver,
             displayScale = displayScale,
             deepBackgroundHibernate = deepHibernate,
             hibernateGoogleServices = hibernateGoogle,
-            enableOverlayHud = enableOverlayHud
+            enableOverlayHud = enableOverlayHud,
+            enableDnd = enableDnd,
+            dndAllowCalls = dndAllowCalls,
+            dndBlockHeadsUp = dndBlockHeadsUp
         )
 
         _gamesList.value = _gamesList.value.map {

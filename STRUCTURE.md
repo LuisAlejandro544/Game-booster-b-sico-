@@ -57,6 +57,8 @@ Este documento detalla la organización de directorios, capas de arquitectura mo
 │   │   │   │   │   │       ├── HudTelemetryTab.kt      # Pestaña de FPS, SoC Temp y uso de RAM
 │   │   │   │   │   │       ├── HudResolutionTab.kt     # Pestaña de escala de resolución y DPI con test de 15s
 │   │   │   │   │   │       ├── HudDriversTab.kt        # Pestaña de cambio de motor gráfico al vuelo
+│   │   │   │   │   │       ├── HudDndTab.kt            # Pestaña de Modo DND Gamer, bloqueo de heads-up y excepciones
+│   │   │   │   │   │       ├── HudHibernationTab.kt    # Pestaña de gestión de hibernación y lista de apps despiertas
 │   │   │   │   │   │       └── HudQuickBoostTab.kt     # Pestaña de Quick Boost instantáneo en partida
 │   │   │   │   │   ├── screens/
 │   │   │   │   │   │   └── BoosterHomeScreen.kt    # Pantalla principal limpia y orquestadora
@@ -80,7 +82,8 @@ Este documento detalla la organización de directorios, capas de arquitectura mo
 │   │   │   │       │   ├── AdbShellExecutor.kt              # Ejecución de comandos Shell vía IPC Shizuku
 │   │   │   │       │   ├── DisplayScaleController.kt        # Controlador de resolución y DPI con failsafe de 5 capas
 │   │   │   │       │   ├── GraphicsDriverController.kt      # Inyección aislada de drivers (Vulkan/ANGLE/OpenGL)
-│   │   │   │       │   ├── ProcessHibernationController.kt  # Suspensión de GMS y congelamiento de procesos
+│   │   │   │       │   ├── ProcessHibernationController.kt  # Suspensión de GMS, objetivos de reposo y excepciones
+│   │   │   │       │   ├── GamerDndController.kt            # Modo DND Gamer, bloqueo de heads-up y filtros
 │   │   │   │       │   └── AppProcessInspector.kt           # Detección de apps en primer plano
 │   │   │   │       └── system/                  # Módulos especializados de telemetría de hardware
 │   │   │   │           ├── ThermalTelemetryReader.kt        # Lector de nodos térmicos `/sys/class/thermal/`
@@ -151,20 +154,21 @@ Este documento detalla la organización de directorios, capas de arquitectura mo
 2. **Capa de Control Shizuku (`util/shizuku/`)**:
    - `AdbShellExecutor`: Ejecución asíncrona segura de comandos ADB por Binder (`Shizuku.newProcess`) con captura de stdout/stderr y exit codes.
    - `GraphicsDriverController`: Inyección por paquete de controladores gráficos (`updatable_driver_production_opt_in_apps`, `angle_gl_driver_selection_pkgs`) y reversión garantizada sin tocar `persist.sys.*`.
-   - `ProcessHibernationController`: Suspensión y deshibernación de Google Play Services (`pm suspend` / `am set-inactive`) y congelamiento de aplicaciones secundarias.
+   - `ProcessHibernationController`: Suspensión y deshibernación de Google Play Services (`pm suspend` / `am set-inactive`), objetivos personalizados de reposo forzado y gestión de excepciones (apps despiertas).
+   - `GamerDndController`: Modo No Molestar automatizado, bloqueo de banners heads-up emergentes y persistencia/restauración de políticas de notificación.
    - `AppProcessInspector`: Detección en tiempo real de la app en primer plano mediante `dumpsys activity` / `cmd activity`.
    - `ShizukuManager`: Fachada unificada que administra el ciclo de vida del Binder y expone una API limpia hacia el resto de la aplicación.
 
 3. **Capa de Lógica del ViewModel (`ui/viewmodel/modules/`)**:
    - `DeviceTelemetryManager`: Gestiona el hilo periódico de refresco de telemetría de hardware y el test de ping en vivo.
-   - `GameCatalogManager`: Administra la consulta de aplicaciones instaladas, detección automática de juegos y almacenamiento de configuraciones por juego.
+   - `GameCatalogManager`: Administra la consulta de aplicaciones instaladas, detección automática de juegos y almacenamiento de configuraciones por juego (DND, resolución, drivers e hibernación).
    - `GameBoostOrchestrator`: Coordina la secuencia de animación y ejecución técnica de la optimización (limpieza de RAM/caché, ejecución ADB, cálculo de deltas y arranque del centinela).
    - `BoosterViewModel`: Punto único de enlace para la UI en Jetpack Compose, manteniendo los `StateFlow` reactivos.
 
 4. **Capa de Presentación y HUD Flotante (`ui/components/overlay/` y `service/overlay/`)**:
    - `FloatingGamerBubble`: Burbuja flotante animada con contador de FPS, temperatura de SoC y acceso rápido al panel.
-   - `ExpandedGamerPanel`: Panel expandible in-game con pestañas de telemetría, selector de drivers gráficos y botón Quick Boost.
-   - `HudTelemetryTab`, `HudResolutionTab`, `HudDriversTab`, `HudQuickBoostTab`: Vistas modulares por pestaña con responsabilidad única.
+   - `ExpandedGamerPanel`: Panel expandible in-game con pestañas de telemetría, resolución/DPI, selector de drivers gráficos, modo DND, hibernación/excepciones y botón Quick Boost.
+   - `HudTelemetryTab`, `HudResolutionTab`, `HudDriversTab`, `HudDndTab`, `HudHibernationTab`, `HudQuickBoostTab`: Vistas modulares por pestaña con responsabilidad única.
    - `GameOverlayHudView`: Punto de entrada que coordina el estado expandido/minimizado.
    - `DraggableOverlayWindowManager`: Controla la adición/remoción de la vista flotante en el `WindowManager`, `LayoutParams` (`TYPE_APPLICATION_OVERLAY`) y el cálculo de gestos táctiles de arrastre en pantalla.
    - `OverlayLifecycleOwner`: Suministra el ciclo de vida de Android (`LifecycleOwner`, `SavedStateRegistryOwner`, `ViewModelStoreOwner`) para renderizar componentes Jetpack Compose sobre el sistema.

@@ -29,6 +29,7 @@ import com.example.ui.theme.GameBoosterTheme
 import com.example.util.ShizukuManager
 import com.example.util.SystemInfoHelper
 import com.example.util.shizuku.DisplayScaleController
+import com.example.util.shizuku.GamerDndController
 import com.example.util.shizuku.ResolutionCountdownNotifier
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -56,6 +57,14 @@ class GameOverlayService : Service() {
     private var currentFps by mutableIntStateOf(60)
     private var metricsState by mutableStateOf(DeviceMetrics())
     private var feedbackMessage by mutableStateOf<String?>(null)
+
+    // DND & Hibernation in-game state
+    private var isDndActive by mutableStateOf(true)
+    private var blockHeadsUp by mutableStateOf(true)
+    private var allowCalls by mutableStateOf(true)
+    private var dndExceptions by mutableStateOf<Set<String>>(emptySet())
+    private var hibernatedPackages by mutableStateOf<Set<String>>(emptySet())
+    private var hibernationExceptions by mutableStateOf<Set<String>>(emptySet())
 
     // Resolution Testing States
     private var isTestingResolution by mutableStateOf(false)
@@ -91,6 +100,14 @@ class GameOverlayService : Service() {
         prefs = BoosterPreferences(this)
         overlayWindowManager = DraggableOverlayWindowManager(this)
         createNotificationChannel()
+
+        // Load initial DND & Hibernation prefs
+        isDndActive = targetPackage?.let { prefs.getGameDndEnabled(it) } ?: true
+        blockHeadsUp = prefs.getDndBlockHeadsUp()
+        allowCalls = prefs.getDndAllowCalls()
+        dndExceptions = prefs.getDndExceptions()
+        hibernatedPackages = prefs.getCurrentlyHibernatedPackages()
+        hibernationExceptions = prefs.getHibernationExceptions()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -116,6 +133,15 @@ class GameOverlayService : Service() {
         } catch (_: Exception) {
             DisplayResolutionScale.NATIVE_100
         }
+
+        targetPackage?.let {
+            isDndActive = prefs.getGameDndEnabled(it)
+        }
+        blockHeadsUp = prefs.getDndBlockHeadsUp()
+        allowCalls = prefs.getDndAllowCalls()
+        dndExceptions = prefs.getDndExceptions()
+        hibernatedPackages = prefs.getCurrentlyHibernatedPackages()
+        hibernationExceptions = prefs.getHibernationExceptions()
 
         // Start Foreground Notification
         val notification = buildForegroundNotification()
@@ -151,6 +177,27 @@ class GameOverlayService : Service() {
                     isTestingResolution = isTestingResolution,
                     testCountdownSeconds = testCountdownSeconds,
                     metrics = metricsState,
+                    isDndActive = isDndActive,
+                    blockHeadsUp = blockHeadsUp,
+                    allowCalls = allowCalls,
+                    dndExceptions = dndExceptions,
+                    hibernatedPackages = hibernatedPackages,
+                    hibernationExceptions = hibernationExceptions,
+                    onToggleDnd = { enabled ->
+                        toggleDndInGame(enabled)
+                    },
+                    onToggleBlockHeadsUp = { blocked ->
+                        toggleHeadsUpInGame(blocked)
+                    },
+                    onToggleAllowCalls = { allowed ->
+                        toggleAllowCallsInGame(allowed)
+                    },
+                    onToggleDndAppException = { pkg ->
+                        toggleDndAppExceptionInGame(pkg)
+                    },
+                    onToggleAppHibernation = { pkg, shouldHibernate ->
+                        toggleAppHibernationInGame(pkg, shouldHibernate)
+                    },
                     onToggleExpand = {
                         isExpanded = !isExpanded
                         overlayWindowManager.requestLayoutUpdate()
@@ -187,6 +234,132 @@ class GameOverlayService : Service() {
                         overlayWindowManager.moveBy(dx, dy)
                     }
                 )
+            }
+        }
+    }
+
+    private fun toggleDndInGame(enabled: Boolean) {
+        isDndActive = enabled
+        targetPackage?.let { prefs.setGameDndEnabled(it, enabled) }
+        serviceScope.launch(Dispatchers.IO) {
+            try {
+                if (enabled) {
+                    ShizukuManager.applyGamerDnd(
+                        context = this@GameOverlayService,
+                        allowCalls = allowCalls,
+                        blockHeadsUp = blockHeadsUp,
+                        exceptions = dndExceptions
+                    )
+                    feedbackMessage = "🔕 Modo DND Gamer activado"
+                } else {
+                    GamerDndController.restoreDndSettings(this@GameOverlayService, ShizukuManager.isAuthorized)
+                    feedbackMessage = "🔔 Modo DND Gamer desactivado"
+                }
+                delay(3000L)
+                feedbackMessage = null
+            } catch (e: Exception) {
+                Log.e(TAG, "Error toggling DND in game", e)
+            }
+        }
+    }
+
+    private fun toggleHeadsUpInGame(blocked: Boolean) {
+        blockHeadsUp = blocked
+        prefs.setDndBlockHeadsUp(blocked)
+        if (isDndActive) {
+            serviceScope.launch(Dispatchers.IO) {
+                ShizukuManager.applyGamerDnd(
+                    context = this@GameOverlayService,
+                    allowCalls = allowCalls,
+                    blockHeadsUp = blocked,
+                    exceptions = dndExceptions
+                )
+                feedbackMessage = if (blocked) "🚫 Banners Heads-Up bloqueados" else "✓ Banners Heads-Up permitidos"
+                delay(2500L)
+                feedbackMessage = null
+            }
+        }
+    }
+
+    private fun toggleAllowCallsInGame(allowed: Boolean) {
+        allowCalls = allowed
+        prefs.setDndAllowCalls(allowed)
+        if (isDndActive) {
+            serviceScope.launch(Dispatchers.IO) {
+                ShizukuManager.applyGamerDnd(
+                    context = this@GameOverlayService,
+                    allowCalls = allowed,
+                    blockHeadsUp = blockHeadsUp,
+                    exceptions = dndExceptions
+                )
+                feedbackMessage = if (allowed) "📞 Llamadas entrantes permitidas" else "🔇 Llamadas silenciadas"
+                delay(2500L)
+                feedbackMessage = null
+            }
+        }
+    }
+
+    private fun toggleDndAppExceptionInGame(pkg: String) {
+        val current = dndExceptions.toMutableSet()
+        val isNowWhitelisted = if (current.contains(pkg)) {
+            current.remove(pkg)
+            false
+        } else {
+            current.add(pkg)
+            true
+        }
+        dndExceptions = current
+        prefs.setDndExceptions(current)
+
+        if (isDndActive) {
+            serviceScope.launch(Dispatchers.IO) {
+                ShizukuManager.applyGamerDnd(
+                    context = this@GameOverlayService,
+                    allowCalls = allowCalls,
+                    blockHeadsUp = blockHeadsUp,
+                    exceptions = current
+                )
+                feedbackMessage = if (isNowWhitelisted) "✓ Excepción DND agregada" else "✕ Excepción DND removida"
+                delay(2500L)
+                feedbackMessage = null
+            }
+        }
+    }
+
+    private fun toggleAppHibernationInGame(pkg: String, shouldHibernate: Boolean) {
+        serviceScope.launch(Dispatchers.IO) {
+            try {
+                val currentHib = hibernatedPackages.toMutableSet()
+                val currentEx = hibernationExceptions.toMutableSet()
+
+                if (shouldHibernate) {
+                    currentEx.remove(pkg)
+                    currentHib.add(pkg)
+                    prefs.removeHibernationException(pkg)
+                    prefs.addHibernationCustomTarget(pkg)
+                    ShizukuManager.hibernateBackgroundPackages(
+                        packages = listOf(pkg),
+                        excludePackage = targetPackage,
+                        exceptions = currentEx
+                    )
+                    feedbackMessage = "💤 App puesta en reposo"
+                } else {
+                    currentHib.remove(pkg)
+                    currentEx.add(pkg)
+                    prefs.addHibernationException(pkg)
+                    prefs.removeHibernationCustomTarget(pkg)
+                    ShizukuManager.restoreHibernatedPackages(listOf(pkg))
+                    feedbackMessage = "⚡ App despertada para segundo plano"
+                }
+
+                hibernatedPackages = currentHib
+                hibernationExceptions = currentEx
+                prefs.setCurrentlyHibernatedPackages(currentHib)
+
+                delay(2500L)
+                feedbackMessage = null
+            } catch (e: Exception) {
+                Log.e(TAG, "Error toggling app hibernation", e)
             }
         }
     }
@@ -257,7 +430,6 @@ class GameOverlayService : Service() {
         testCountdownSeconds = 15
 
         resolutionTestJob = serviceScope.launch {
-            // Apply scale
             DisplayScaleController.applyDisplayScale(
                 context = this@GameOverlayService,
                 scale = testScale,
@@ -270,7 +442,6 @@ class GameOverlayService : Service() {
                 delay(1000L)
             }
 
-            // Auto-revert if countdown completes without confirmation
             if (isTestingResolution) {
                 cancelResolutionTestInGame()
                 ResolutionCountdownNotifier.showReverted(this@GameOverlayService)
@@ -324,7 +495,12 @@ class GameOverlayService : Service() {
                 targetPackage?.let { pkg ->
                     val installed = SystemInfoHelper.getInstalledAppsAndGames(this@GameOverlayService)
                     val bgPkgs = installed.map { it.packageName }.filter { it != pkg }
-                    ShizukuManager.hibernateBackgroundPackages(bgPkgs, pkg)
+                    ShizukuManager.hibernateBackgroundPackages(
+                        packages = bgPkgs,
+                        excludePackage = pkg,
+                        exceptions = hibernationExceptions,
+                        customTargets = prefs.getHibernationCustomTargets()
+                    )
                 }
 
                 feedbackMessage = "⚡ +${freed}MB RAM liberados al vuelo"
@@ -362,7 +538,7 @@ class GameOverlayService : Service() {
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("🎮 HUD Gamer Activo: $targetGameTitle")
-            .setContentText("Burbuja flotante de FPS, resolución y motor gráfico en vivo")
+            .setContentText("Burbuja flotante de FPS, resolución, DND y motor gráfico")
             .setSmallIcon(R.mipmap.ic_launcher)
             .setOngoing(true)
             .setContentIntent(pendingIntent)
@@ -417,4 +593,3 @@ class GameOverlayService : Service() {
         }
     }
 }
-

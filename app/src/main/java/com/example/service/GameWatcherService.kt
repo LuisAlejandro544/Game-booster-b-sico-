@@ -18,6 +18,7 @@ import com.example.model.GraphicsDriver
 import com.example.util.ShizukuManager
 import com.example.util.SystemInfoHelper
 import com.example.util.shizuku.DisplayScaleController
+import com.example.util.shizuku.GamerDndController
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -41,6 +42,9 @@ class GameWatcherService : Service() {
     private var appliedDisplayScale: DisplayResolutionScale = DisplayResolutionScale.NATIVE_100
     private var hibernateGoogle: Boolean = false
     private var deepHibernate: Boolean = true
+    private var enableDnd: Boolean = true
+    private var dndAllowCalls: Boolean = true
+    private var dndBlockHeadsUp: Boolean = true
 
     private var hasBeenInForeground = false
     private var consecutiveBackgroundChecks = 0
@@ -77,6 +81,9 @@ class GameWatcherService : Service() {
         }
         hibernateGoogle = intent.getBooleanExtra(EXTRA_HIBERNATE_GOOGLE, false)
         deepHibernate = intent.getBooleanExtra(EXTRA_DEEP_HIBERNATE, true)
+        enableDnd = intent.getBooleanExtra(EXTRA_ENABLE_DND, true)
+        dndAllowCalls = intent.getBooleanExtra(EXTRA_DND_ALLOW_CALLS, true)
+        dndBlockHeadsUp = intent.getBooleanExtra(EXTRA_DND_BLOCK_HEADS_UP, true)
 
         if (targetPackage.isNullOrBlank()) {
             stopSelf()
@@ -84,7 +91,10 @@ class GameWatcherService : Service() {
         }
 
         // Start Foreground Notification
-        val notification = buildForegroundNotification("🔥 Modo Turbo Gamer Activo: $targetGameTitle", "Optimizando CPU, GPU, resolución y RAM en vivo")
+        val notification = buildForegroundNotification(
+            "🔥 Modo Turbo Gamer Activo: $targetGameTitle",
+            "Optimizando CPU, GPU, resolución, DND y RAM en vivo"
+        )
         startForeground(NOTIFICATION_ID, notification)
 
         // Save active state to prefs
@@ -113,6 +123,17 @@ class GameWatcherService : Service() {
                 )
             }
 
+            // 1.4 Apply Gamer DND (No Molestar Gamer) & Heads-up blocking
+            if (enableDnd) {
+                val dndExceptions = prefs.getDndExceptions()
+                ShizukuManager.applyGamerDnd(
+                    context = this@GameWatcherService,
+                    allowCalls = dndAllowCalls,
+                    blockHeadsUp = dndBlockHeadsUp,
+                    exceptions = dndExceptions
+                )
+            }
+
             // 1.5 Launch Floating HUD Overlay if permitted and enabled
             if (android.provider.Settings.canDrawOverlays(this@GameWatcherService) && prefs.getGameOverlayHud(pkg)) {
                 GameOverlayService.start(
@@ -124,11 +145,20 @@ class GameWatcherService : Service() {
                 )
             }
 
-            // 2. Hibernation: Background tasks
+            // 2. Hibernation: Background tasks respecting custom exceptions and targets
             if (deepHibernate) {
                 val installed = SystemInfoHelper.getInstalledAppsAndGames(this@GameWatcherService)
                 val bgPkgs = installed.map { it.packageName }.filter { it != pkg }
-                ShizukuManager.hibernateBackgroundPackages(bgPkgs, pkg)
+                val hibExceptions = prefs.getHibernationExceptions()
+                val customTargets = prefs.getHibernationCustomTargets()
+
+                val (_, hibernatedList) = ShizukuManager.hibernateBackgroundPackages(
+                    packages = bgPkgs,
+                    excludePackage = pkg,
+                    exceptions = hibExceptions,
+                    customTargets = customTargets
+                )
+                prefs.setCurrentlyHibernatedPackages(hibernatedList.toSet())
             }
 
             // 3. Hibernation: Google Play Services if requested
@@ -169,6 +199,9 @@ class GameWatcherService : Service() {
         // Stop Floating In-Game HUD
         GameOverlayService.stop(this@GameWatcherService)
 
+        // Restore DND Gamer back to stock
+        GamerDndController.restoreDndSettings(this@GameWatcherService, ShizukuManager.isAuthorized)
+
         // Restore Display Scale & Density (Layer 3)
         DisplayScaleController.resetDisplayScale(this@GameWatcherService, ShizukuManager.isAuthorized)
 
@@ -186,6 +219,7 @@ class GameWatcherService : Service() {
             val installed = SystemInfoHelper.getInstalledAppsAndGames(this@GameWatcherService)
             val bgPkgs = installed.map { it.packageName }
             ShizukuManager.restoreHibernatedPackages(bgPkgs)
+            prefs.setCurrentlyHibernatedPackages(emptySet())
         }
 
         prefs.setActiveBoostedPackage(null)
@@ -262,6 +296,9 @@ class GameWatcherService : Service() {
         const val EXTRA_DISPLAY_SCALE = "extra_display_scale"
         const val EXTRA_HIBERNATE_GOOGLE = "extra_hibernate_google"
         const val EXTRA_DEEP_HIBERNATE = "extra_deep_hibernate"
+        const val EXTRA_ENABLE_DND = "extra_enable_dnd"
+        const val EXTRA_DND_ALLOW_CALLS = "extra_dnd_allow_calls"
+        const val EXTRA_DND_BLOCK_HEADS_UP = "extra_dnd_block_heads_up"
 
         fun start(
             context: Context,
@@ -270,7 +307,10 @@ class GameWatcherService : Service() {
             driver: GraphicsDriver,
             hibernateGoogle: Boolean,
             deepHibernate: Boolean,
-            displayScale: DisplayResolutionScale = DisplayResolutionScale.NATIVE_100
+            displayScale: DisplayResolutionScale = DisplayResolutionScale.NATIVE_100,
+            enableDnd: Boolean = true,
+            dndAllowCalls: Boolean = true,
+            dndBlockHeadsUp: Boolean = true
         ) {
             val intent = Intent(context, GameWatcherService::class.java).apply {
                 action = ACTION_START_WATCHER
@@ -280,6 +320,9 @@ class GameWatcherService : Service() {
                 putExtra(EXTRA_DISPLAY_SCALE, displayScale.name)
                 putExtra(EXTRA_HIBERNATE_GOOGLE, hibernateGoogle)
                 putExtra(EXTRA_DEEP_HIBERNATE, deepHibernate)
+                putExtra(EXTRA_ENABLE_DND, enableDnd)
+                putExtra(EXTRA_DND_ALLOW_CALLS, dndAllowCalls)
+                putExtra(EXTRA_DND_BLOCK_HEADS_UP, dndBlockHeadsUp)
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(intent)
