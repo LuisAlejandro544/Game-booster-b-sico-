@@ -315,4 +315,160 @@ class BoosterPreferences(context: Context) {
     fun setCurrentlyHibernatedPackages(pkgs: Set<String>) {
         prefs.edit().putStringSet("currently_hibernated_pkgs", pkgs).apply()
     }
+
+    // ==========================================
+    // RESPUESTA TÁCTIL Y SENSIBILIDAD (TOUCH BOOST)
+    // ==========================================
+
+    fun getGameTouchBoost(packageName: String): Boolean {
+        return prefs.getBoolean("touch_boost_$packageName", true)
+    }
+
+    fun setGameTouchBoost(packageName: String, enabled: Boolean) {
+        prefs.edit().putBoolean("touch_boost_$packageName", enabled).apply()
+    }
+
+    fun isTouchBoostActive(): Boolean {
+        return prefs.getBoolean("touch_boost_active", false)
+    }
+
+    fun setTouchBoostActive(active: Boolean) {
+        prefs.edit().putBoolean("touch_boost_active", active).apply()
+    }
+
+    fun getTouchPointerSpeed(): Int {
+        return prefs.getInt("touch_pointer_speed", 7)
+    }
+
+    fun setTouchPointerSpeed(speed: Int) {
+        prefs.edit().putInt("touch_pointer_speed", speed).apply()
+    }
+
+    fun getTouchMaxHz(): Boolean {
+        return prefs.getBoolean("touch_max_hz", true)
+    }
+
+    fun setTouchMaxHz(enabled: Boolean) {
+        prefs.edit().putBoolean("touch_max_hz", enabled).apply()
+    }
+
+    fun getTouchZeroAnimation(): Boolean {
+        return prefs.getBoolean("touch_zero_anim", true)
+    }
+
+    fun setTouchZeroAnimation(enabled: Boolean) {
+        prefs.edit().putBoolean("touch_zero_anim", enabled).apply()
+    }
+
+    fun getSavedPointerSpeed(): Int {
+        return prefs.getInt("saved_pointer_speed", -1)
+    }
+
+    fun setSavedPointerSpeed(speed: Int) {
+        prefs.edit().putInt("saved_pointer_speed", speed).apply()
+    }
+
+    fun getSavedMinRefreshRate(): Float {
+        return prefs.getFloat("saved_min_refresh", -1f)
+    }
+
+    fun setSavedMinRefreshRate(rate: Float) {
+        prefs.edit().putFloat("saved_min_refresh", rate).apply()
+    }
+
+    fun getSavedPeakRefreshRate(): Float {
+        return prefs.getFloat("saved_peak_refresh", -1f)
+    }
+
+    fun setSavedPeakRefreshRate(rate: Float) {
+        prefs.edit().putFloat("saved_peak_refresh", rate).apply()
+    }
+
+    fun getSavedLongPressTimeout(): Int {
+        return prefs.getInt("saved_long_press_timeout", -1)
+    }
+
+    fun setSavedLongPressTimeout(timeout: Int) {
+        prefs.edit().putInt("saved_long_press_timeout", timeout).apply()
+    }
+
+    fun getSavedWindowAnimScale(): Float {
+        return prefs.getFloat("saved_window_anim_scale", -1f)
+    }
+
+    fun setSavedWindowAnimScale(scale: Float) {
+        prefs.edit().putFloat("saved_window_anim_scale", scale).apply()
+    }
+
+    // ==========================================
+    // OPTIMIZADOR WI-FI Y PING (ANTI-JITTER)
+    // ==========================================
+
+    fun getGameWifiHighPerf(packageName: String): Boolean {
+        return prefs.getBoolean("wifi_high_perf_$packageName", true)
+    }
+
+    fun setGameWifiHighPerf(packageName: String, enabled: Boolean) {
+        prefs.edit().putBoolean("wifi_high_perf_$packageName", enabled).apply()
+    }
+
+    fun isWifiHighPerfActive(): Boolean {
+        return prefs.getBoolean("wifi_high_perf_active", false)
+    }
+
+    fun setWifiHighPerfActive(active: Boolean) {
+        prefs.edit().putBoolean("wifi_high_perf_active", active).apply()
+    }
+
+    fun getSavedWifiSuspendOpt(): Int {
+        return prefs.getInt("saved_wifi_suspend_opt", -1)
+    }
+
+    fun setSavedWifiSuspendOpt(value: Int) {
+        prefs.edit().putInt("saved_wifi_suspend_opt", value).apply()
+    }
+
+    // ==========================================
+    // MIRA GAMER FLOTANTE (CROSSHAIR HUD)
+    // ==========================================
+
+    fun getGameCrosshairEnabled(packageName: String): Boolean {
+        return prefs.getBoolean("crosshair_enabled_$packageName", false)
+    }
+
+    fun setGameCrosshairEnabled(packageName: String, enabled: Boolean) {
+        prefs.edit().putBoolean("crosshair_enabled_$packageName", enabled).apply()
+    }
+
+    fun isGlobalCrosshairActive(): Boolean {
+        return prefs.getBoolean("global_crosshair_active", false)
+    }
+
+    fun setGlobalCrosshairActive(active: Boolean) {
+        prefs.edit().putBoolean("global_crosshair_active", active).apply()
+    }
+
+    fun getCrosshairStyle(): String {
+        return prefs.getString("crosshair_style", "CROSS") ?: "CROSS"
+    }
+
+    fun setCrosshairStyle(style: String) {
+        prefs.edit().putString("crosshair_style", style).apply()
+    }
+
+    fun getCrosshairColor(): Long {
+        return prefs.getLong("crosshair_color", 0xFF00F0FFL) // NeonCyan
+    }
+
+    fun setCrosshairColor(color: Long) {
+        prefs.edit().putLong("crosshair_color", color).apply()
+    }
+
+    fun getCrosshairSize(): Int {
+        return prefs.getInt("crosshair_size", 24)
+    }
+
+    fun setCrosshairSize(size: Int) {
+        prefs.edit().putInt("crosshair_size", size).apply()
+    }
 }

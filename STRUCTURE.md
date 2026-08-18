@@ -60,6 +60,8 @@ Este documento detalla la organización de directorios, capas de arquitectura mo
 │   │   │   │   │   │       ├── HudDndTab.kt            # Pestaña de Modo DND Gamer, bloqueo de heads-up y excepciones
 │   │   │   │   │   │       ├── HudHibernationTab.kt    # Pestaña de gestión de hibernación y lista de apps despiertas
 │   │   │   │   │   │       └── HudQuickBoostTab.kt     # Pestaña de Quick Boost instantáneo en partida
+│   │   │   │   │   ├── overlay/
+│   │   │   │   │   │   └── CrosshairOverlayView.kt # Retícula táctica vectorial acelerada por hardware
 │   │   │   │   │   ├── screens/
 │   │   │   │   │   │   └── BoosterHomeScreen.kt    # Pantalla principal limpia y orquestadora
 │   │   │   │   │   ├── theme/
@@ -84,6 +86,8 @@ Este documento detalla la organización de directorios, capas de arquitectura mo
 │   │   │   │       │   ├── GraphicsDriverController.kt      # Inyección aislada de drivers (Vulkan/ANGLE/OpenGL)
 │   │   │   │       │   ├── ProcessHibernationController.kt  # Suspensión de GMS, objetivos de reposo y excepciones
 │   │   │   │       │   ├── GamerDndController.kt            # Modo DND Gamer, bloqueo de heads-up y filtros
+│   │   │   │       │   ├── TouchResponseController.kt       # Overclock táctil a nivel 7, 120Hz/Max y 0 animación
+│   │   │   │       │   ├── NetworkOptimizerController.kt    # Desactivación de ahorro Wi-Fi y anti-jitter
 │   │   │   │       │   └── AppProcessInspector.kt           # Detección de apps en primer plano
 │   │   │   │       └── system/                  # Módulos especializados de telemetría de hardware
 │   │   │   │           ├── ThermalTelemetryReader.kt        # Lector de nodos térmicos `/sys/class/thermal/`
@@ -156,6 +160,8 @@ Este documento detalla la organización de directorios, capas de arquitectura mo
    - `GraphicsDriverController`: Inyección por paquete de controladores gráficos (`updatable_driver_production_opt_in_apps`, `angle_gl_driver_selection_pkgs`) y reversión garantizada sin tocar `persist.sys.*`.
    - `ProcessHibernationController`: Suspensión y deshibernación de Google Play Services (`pm suspend` / `am set-inactive`), objetivos personalizados de reposo forzado y gestión de excepciones (apps despiertas).
    - `GamerDndController`: Modo No Molestar automatizado, bloqueo de banners heads-up emergentes y persistencia/restauración de políticas de notificación.
+   - `TouchResponseController`: Overclock de sensibilidad táctil a nivel 7 (`pointer_speed`), fijación de tasa de refresco a 120Hz/máxima y reducción de latencia de animaciones con reversión garantizada.
+   - `NetworkOptimizerController`: Desactivación de suspensión y ahorro energético del chip Wi-Fi (`wifi_suspend_optimizations_enabled 0` y `set-low-latency-mode enabled`) para estabilidad anti-jitter.
    - `AppProcessInspector`: Detección en tiempo real de la app en primer plano mediante `dumpsys activity` / `cmd activity`.
    - `ShizukuManager`: Fachada unificada que administra el ciclo de vida del Binder y expone una API limpia hacia el resto de la aplicación.
 

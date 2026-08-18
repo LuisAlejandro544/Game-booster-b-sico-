@@ -152,10 +152,17 @@ fun BoosterHomeScreen(
             onCancelTest = {
                 viewModel.cancelResolutionTest()
             },
-            onSaveConfig = { driver, scale, deepHib, hibGoogle, overlayHud, dnd, allowCalls, blockHeadsUp ->
-                viewModel.saveGameConfiguration(gameToConfig, driver, scale, deepHib, hibGoogle, overlayHud, dnd, allowCalls, blockHeadsUp)
+            onSaveConfig = { driver, scale, deepHib, hibGoogle, overlayHud, dnd, allowCalls, blockHeadsUp, touchBoost, wifiPerf, crosshair ->
+                viewModel.saveGameConfiguration(
+                    gameToConfig, driver, scale, deepHib, hibGoogle, overlayHud,
+                    dnd, allowCalls, blockHeadsUp, touchBoost, wifiPerf, crosshair
+                )
             },
-            onBoostAndLaunch = { game, driver, scale, deepHib, hibGoogle, overlayHud, dnd, allowCalls, blockHeadsUp ->
+            onBoostAndLaunch = { game, driver, scale, deepHib, hibGoogle, overlayHud, dnd, allowCalls, blockHeadsUp, touchBoost, wifiPerf, crosshair ->
+                viewModel.saveGameConfiguration(
+                    game, driver, scale, deepHib, hibGoogle, overlayHud,
+                    dnd, allowCalls, blockHeadsUp, touchBoost, wifiPerf, crosshair
+                )
                 viewModel.triggerBoost(
                     targetGame = game,
                     forcedDriver = driver,

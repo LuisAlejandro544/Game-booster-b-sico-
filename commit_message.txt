@@ -1,9 +1,7 @@
-feat: automated gamer DND mode, app whitelist exceptions, and live HUD hibernation manager
+feat(turbo): implement touch boost, wi-fi anti-jitter optimizer, tactical crosshair overlay, and ui polish
 
-- Add Gamer DND Mode (`GamerDndController`) via Shizuku shell control for `zen_mode` and `heads_up_notifications_enabled`
-- Support custom app whitelist exceptions and priority incoming phone calls pass-through
-- Add custom background app hibernation targets and wake exceptions manager in `BoosterPreferences` and `ProcessHibernationController`
-- Integrate DND and Hibernation management tabs into the floating in-game HUD (`HudDndTab`, `HudHibernationTab`) with real-time feedback
-- Update `GameConfigSheet`, `GameWatcherService`, and `GameBoostOrchestrator` to configure and automatically activate DND and hibernation on game launch
-- Guarantee full automated state restoration (DND, heads-up, suspended apps, GMS) upon game exit or process termination via `GameWatcherService` and `BootRecoveryReceiver`
-- Update all documentation files (README.md, ROADMAP.md, STRUCTURE.md, AI_CONTEXT.md)
+- Touch Boost & Latencia Táctil: Overclock de velocidad de puntero a nivel 7, fijación de tasa de refresco máxima/120Hz y eliminación de latencia de animación con restauración automática
+- Wi-Fi Anti-Jitter Optimizer: Desactivación de suspensión de energía Wi-Fi por Shizuku para eliminar picos de lag y fluctuaciones de ping en partidas competitivas
+- Mira Gamer Táctica (Crosshair HUD): Superposición vectorial acelerada por hardware con múltiples estilos (Cruz, Punto, Círculo, Diamante) y colores neón
+- UI & Layout Fixes: Corrección de compresión de badges, ajuste de texto de chips y alineación de switches en `GameConfigSheet`
+- Failsafe Integration: Persistencia y restauración de fábrica en `GameWatcherService` y `BootRecoveryReceiver` ante reinicios del dispositivo

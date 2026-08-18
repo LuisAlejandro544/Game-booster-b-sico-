@@ -12,10 +12,12 @@ import com.example.util.shizuku.AppProcessInspector
 import com.example.util.shizuku.ElevatedBoostReport
 import com.example.util.shizuku.GamerDndController
 import com.example.util.shizuku.GraphicsDriverController
+import com.example.util.shizuku.NetworkOptimizerController
 import com.example.util.shizuku.ProcessHibernationController
 import com.example.util.shizuku.ShellResult
 import com.example.util.shizuku.ShizukuState
 import com.example.util.shizuku.ShizukuStatus
+import com.example.util.shizuku.TouchResponseController
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -282,6 +284,27 @@ object ShizukuManager {
 
     suspend fun restoreGamerDnd(context: Context): List<String> {
         return GamerDndController.restoreDndSettings(context, isAuthorized)
+    }
+
+    suspend fun applyTouchBoost(
+        context: Context,
+        pointerSpeed: Int = 7,
+        forceMaxHz: Boolean = true,
+        zeroAnimations: Boolean = true
+    ): List<String> {
+        return TouchResponseController.applyTouchBoost(context, pointerSpeed, forceMaxHz, zeroAnimations, isAuthorized)
+    }
+
+    suspend fun restoreTouchSettings(context: Context): List<String> {
+        return TouchResponseController.restoreTouchSettings(context, isAuthorized)
+    }
+
+    suspend fun applyWifiHighPerf(context: Context): List<String> {
+        return NetworkOptimizerController.applyWifiHighPerf(context, isAuthorized)
+    }
+
+    suspend fun restoreWifiSettings(context: Context): List<String> {
+        return NetworkOptimizerController.restoreWifiSettings(context, isAuthorized)
     }
 
     suspend fun isAppInForeground(packageName: String): Boolean {

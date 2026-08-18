@@ -42,6 +42,10 @@ import androidx.compose.material.icons.filled.SettingsSuggest
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.GpsFixed
+import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.filled.TouchApp
+import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -55,12 +59,16 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.SheetState
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -86,6 +94,7 @@ import com.example.ui.theme.NeonAmber
 import com.example.ui.theme.NeonCyan
 import com.example.ui.theme.NeonGreen
 import com.example.ui.theme.NeonPurple
+import com.example.ui.theme.NeonRed
 import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
@@ -102,8 +111,8 @@ fun GameConfigSheet(
     onTestScale: (DisplayResolutionScale) -> Unit,
     onConfirmTest: (GameItem) -> Unit,
     onCancelTest: () -> Unit,
-    onSaveConfig: (GraphicsDriver, DisplayResolutionScale, Boolean, Boolean, Boolean, Boolean, Boolean, Boolean) -> Unit,
-    onBoostAndLaunch: (GameItem, GraphicsDriver, DisplayResolutionScale, Boolean, Boolean, Boolean, Boolean, Boolean, Boolean) -> Unit,
+    onSaveConfig: (GraphicsDriver, DisplayResolutionScale, Boolean, Boolean, Boolean, Boolean, Boolean, Boolean, Boolean, Boolean, Boolean) -> Unit,
+    onBoostAndLaunch: (GameItem, GraphicsDriver, DisplayResolutionScale, Boolean, Boolean, Boolean, Boolean, Boolean, Boolean, Boolean, Boolean, Boolean) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -116,6 +125,9 @@ fun GameConfigSheet(
     var enableDnd by remember(game) { mutableStateOf(game.enableDnd) }
     var dndAllowCalls by remember(game) { mutableStateOf(game.dndAllowCalls) }
     var dndBlockHeadsUp by remember(game) { mutableStateOf(game.dndBlockHeadsUp) }
+    var enableTouchBoost by remember(game) { mutableStateOf(game.enableTouchBoost) }
+    var enableWifiHighPerf by remember(game) { mutableStateOf(game.enableWifiHighPerf) }
+    var enableCrosshair by remember(game) { mutableStateOf(game.enableCrosshair) }
 
     val bitmap = remember(game.iconDrawable) {
         game.iconDrawable?.let { drawableToBitmap(it) }
@@ -528,24 +540,28 @@ fun GameConfigSheet(
                     )
                     Column(modifier = Modifier.weight(1f)) {
                         Row(
+                            modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Text(
-                                text = "Suspender Servicios de Google Play",
+                                text = "Suspender Servicios Google",
                                 style = MaterialTheme.typography.labelMedium.copy(
                                     fontWeight = FontWeight.Bold,
                                     color = TextPrimary
-                                )
+                                ),
+                                modifier = Modifier.weight(1f, fill = false)
                             )
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(4.dp))
                                     .background(NeonPurple.copy(alpha = 0.2f))
-                                    .padding(horizontal = 4.dp, vertical = 1.dp)
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
                             ) {
                                 Text(
                                     text = "+400MB RAM",
+                                    maxLines = 1,
+                                    softWrap = false,
                                     style = MaterialTheme.typography.labelSmall.copy(
                                         fontSize = 8.sp,
                                         fontWeight = FontWeight.Black
@@ -608,24 +624,28 @@ fun GameConfigSheet(
                     )
                     Column(modifier = Modifier.weight(1f)) {
                         Row(
+                            modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Text(
-                                text = "Burbuja Flotante HUD (FPS & Switcher)",
+                                text = "Burbuja Flotante HUD",
                                 style = MaterialTheme.typography.labelMedium.copy(
                                     fontWeight = FontWeight.Bold,
                                     color = TextPrimary
-                                )
+                                ),
+                                modifier = Modifier.weight(1f, fill = false)
                             )
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(4.dp))
                                     .background(NeonGreen.copy(alpha = 0.2f))
-                                    .padding(horizontal = 4.dp, vertical = 1.dp)
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
                             ) {
                                 Text(
                                     text = "EN VIVO",
+                                    maxLines = 1,
+                                    softWrap = false,
                                     style = MaterialTheme.typography.labelSmall.copy(
                                         fontSize = 8.sp,
                                         fontWeight = FontWeight.Black
@@ -692,24 +712,28 @@ fun GameConfigSheet(
                         )
                         Column(modifier = Modifier.weight(1f)) {
                             Row(
+                                modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
                                 Text(
-                                    text = "Modo No Molestar Gamer (DND)",
+                                    text = "Modo No Molestar (DND)",
                                     style = MaterialTheme.typography.labelMedium.copy(
                                         fontWeight = FontWeight.Bold,
                                         color = TextPrimary
-                                    )
+                                    ),
+                                    modifier = Modifier.weight(1f, fill = false)
                                 )
                                 Box(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(4.dp))
                                         .background(NeonAmber.copy(alpha = 0.2f))
-                                        .padding(horizontal = 4.dp, vertical = 1.dp)
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
                                 ) {
                                     Text(
                                         text = "AUTO",
+                                        maxLines = 1,
+                                        softWrap = false,
                                         style = MaterialTheme.typography.labelSmall.copy(
                                             fontSize = 8.sp,
                                             fontWeight = FontWeight.Black
@@ -802,6 +826,258 @@ fun GameConfigSheet(
                 }
             }
 
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Switch 5: Touch Boost (Overclock Táctil & Muestreo)
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .border(
+                        1.dp,
+                        if (enableTouchBoost) NeonCyan.copy(alpha = 0.6f) else GamerCardBorder,
+                        RoundedCornerShape(10.dp)
+                    )
+                    .clickable { enableTouchBoost = !enableTouchBoost },
+                colors = CardDefaults.cardColors(
+                    containerColor = if (enableTouchBoost) GamerSurfaceElevated else GamerCardBackground
+                )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.TouchApp,
+                        contentDescription = null,
+                        tint = if (enableTouchBoost) NeonCyan else TextMuted,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(
+                                text = "Touch Boost & Respuesta",
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = TextPrimary
+                                ),
+                                modifier = Modifier.weight(1f, fill = false)
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(NeonCyan.copy(alpha = 0.2f))
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = "120Hz/MAX",
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontSize = 8.sp,
+                                        fontWeight = FontWeight.Black
+                                    ),
+                                    color = NeonCyan
+                                )
+                            }
+                        }
+                        Text(
+                            text = "Aumenta la sensibilidad del puntero a nivel 7, fuerza la tasa máxima de refresco y reduce latencia táctil.",
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                fontSize = 10.sp,
+                                color = TextSecondary,
+                                lineHeight = 13.sp
+                            )
+                        )
+                    }
+                    Switch(
+                        checked = enableTouchBoost,
+                        onCheckedChange = { enableTouchBoost = it },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = GamerDarkBackground,
+                            checkedTrackColor = NeonCyan,
+                            uncheckedThumbColor = TextMuted,
+                            uncheckedTrackColor = GamerSurfaceElevated
+                        )
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Switch 6: Wi-Fi Anti-Jitter Optimizer
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .border(
+                        1.dp,
+                        if (enableWifiHighPerf) NeonGreen.copy(alpha = 0.6f) else GamerCardBorder,
+                        RoundedCornerShape(10.dp)
+                    )
+                    .clickable { enableWifiHighPerf = !enableWifiHighPerf },
+                colors = CardDefaults.cardColors(
+                    containerColor = if (enableWifiHighPerf) GamerSurfaceElevated else GamerCardBackground
+                )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Wifi,
+                        contentDescription = null,
+                        tint = if (enableWifiHighPerf) NeonGreen else TextMuted,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(
+                                text = "Wi-Fi Ultra-Baja Latencia",
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = TextPrimary
+                                ),
+                                modifier = Modifier.weight(1f, fill = false)
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(NeonGreen.copy(alpha = 0.2f))
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = "PING PLANO",
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontSize = 8.sp,
+                                        fontWeight = FontWeight.Black
+                                    ),
+                                    color = NeonGreen
+                                )
+                            }
+                        }
+                        Text(
+                            text = "Desactiva la suspensión de energía del chip Wi-Fi para evitar caídas de paquetes y picos de lag en shooters.",
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                fontSize = 10.sp,
+                                color = TextSecondary,
+                                lineHeight = 13.sp
+                            )
+                        )
+                    }
+                    Switch(
+                        checked = enableWifiHighPerf,
+                        onCheckedChange = { enableWifiHighPerf = it },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = GamerDarkBackground,
+                            checkedTrackColor = NeonGreen,
+                            uncheckedThumbColor = TextMuted,
+                            uncheckedTrackColor = GamerSurfaceElevated
+                        )
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Switch 7: Tactical Crosshair Overlay
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .border(
+                        1.dp,
+                        if (enableCrosshair) NeonRed.copy(alpha = 0.6f) else GamerCardBorder,
+                        RoundedCornerShape(10.dp)
+                    )
+                    .clickable { enableCrosshair = !enableCrosshair },
+                colors = CardDefaults.cardColors(
+                    containerColor = if (enableCrosshair) GamerSurfaceElevated else GamerCardBackground
+                )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.GpsFixed,
+                        contentDescription = null,
+                        tint = if (enableCrosshair) NeonRed else TextMuted,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(
+                                text = "Mira Gamer Táctica (HUD)",
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = TextPrimary
+                                ),
+                                modifier = Modifier.weight(1f, fill = false)
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(NeonRed.copy(alpha = 0.2f))
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = "FPS/AIM",
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontSize = 8.sp,
+                                        fontWeight = FontWeight.Black
+                                    ),
+                                    color = NeonRed
+                                )
+                            }
+                        }
+                        Text(
+                            text = "Superpone una retícula táctica fija personalizable en el centro para juegos Battle Royale y FPS.",
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                fontSize = 10.sp,
+                                color = TextSecondary,
+                                lineHeight = 13.sp
+                            )
+                        )
+                    }
+                    Switch(
+                        checked = enableCrosshair,
+                        onCheckedChange = { enableCrosshair = it },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = GamerDarkBackground,
+                            checkedTrackColor = NeonRed,
+                            uncheckedThumbColor = TextMuted,
+                            uncheckedTrackColor = GamerSurfaceElevated
+                        )
+                    )
+                }
+            }
+
             Spacer(modifier = Modifier.height(20.dp))
 
             // Action Buttons
@@ -811,7 +1087,19 @@ fun GameConfigSheet(
             ) {
                 OutlinedButton(
                     onClick = {
-                        onSaveConfig(selectedDriver, selectedScale, deepHibernate, hibernateGoogle, enableOverlayHud, enableDnd, dndAllowCalls, dndBlockHeadsUp)
+                        onSaveConfig(
+                            selectedDriver,
+                            selectedScale,
+                            deepHibernate,
+                            hibernateGoogle,
+                            enableOverlayHud,
+                            enableDnd,
+                            dndAllowCalls,
+                            dndBlockHeadsUp,
+                            enableTouchBoost,
+                            enableWifiHighPerf,
+                            enableCrosshair
+                        )
                         onDismiss()
                     },
                     shape = RoundedCornerShape(10.dp),
@@ -830,7 +1118,20 @@ fun GameConfigSheet(
 
                 Button(
                     onClick = {
-                        onBoostAndLaunch(game, selectedDriver, selectedScale, deepHibernate, hibernateGoogle, enableOverlayHud, enableDnd, dndAllowCalls, dndBlockHeadsUp)
+                        onBoostAndLaunch(
+                            game,
+                            selectedDriver,
+                            selectedScale,
+                            deepHibernate,
+                            hibernateGoogle,
+                            enableOverlayHud,
+                            enableDnd,
+                            dndAllowCalls,
+                            dndBlockHeadsUp,
+                            enableTouchBoost,
+                            enableWifiHighPerf,
+                            enableCrosshair
+                        )
                     },
                     shape = RoundedCornerShape(10.dp),
                     colors = ButtonDefaults.buttonColors(
@@ -901,6 +1202,7 @@ private fun DriverOptionCard(
 
             Column(modifier = Modifier.weight(1f)) {
                 Row(
+                    modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
@@ -909,7 +1211,8 @@ private fun DriverOptionCard(
                         style = MaterialTheme.typography.labelMedium.copy(
                             fontWeight = FontWeight.Bold,
                             color = if (isSelected) TextPrimary else TextSecondary
-                        )
+                        ),
+                        modifier = Modifier.weight(1f, fill = false)
                     )
                     Box(
                         modifier = Modifier
@@ -921,6 +1224,8 @@ private fun DriverOptionCard(
                     ) {
                         Text(
                             text = driver.tag,
+                            maxLines = 1,
+                            softWrap = false,
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontSize = 9.sp,
                                 fontWeight = FontWeight.Bold,
@@ -996,6 +1301,7 @@ private fun ResolutionScaleOptionCard(
 
             Column(modifier = Modifier.weight(1f)) {
                 Row(
+                    modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
@@ -1004,7 +1310,8 @@ private fun ResolutionScaleOptionCard(
                         style = MaterialTheme.typography.labelMedium.copy(
                             fontWeight = FontWeight.Bold,
                             color = if (isSelected) TextPrimary else TextSecondary
-                        )
+                        ),
+                        modifier = Modifier.weight(1f, fill = false)
                     )
                     Box(
                         modifier = Modifier
@@ -1016,6 +1323,8 @@ private fun ResolutionScaleOptionCard(
                     ) {
                         Text(
                             text = scale.tag,
+                            maxLines = 1,
+                            softWrap = false,
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontSize = 9.sp,
                                 fontWeight = FontWeight.Bold,

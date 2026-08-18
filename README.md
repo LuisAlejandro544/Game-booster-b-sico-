@@ -39,6 +39,17 @@
   - **Lista Blanca de Excepciones**: Recibe notificaciones importantes de apps críticas que elijas (WhatsApp, Discord, etc.) sin interrumpir el juego.
   - **Pase de Llamadas Prioritarias**: Filtra o permite llamadas telefónicas entrantes según tu preferencia.
   - **Restauración Automática**: Devuelve el modo DND y los banners emergentes a sus valores originales al terminar la partida.
+- **⚡ Touch Boost & Latencia Táctil Ultrabaja (`TouchResponseController`)**:
+  - **Sensibilidad y Muestreo al Máximo**: Ajusta la velocidad del puntero del sistema (`pointer_speed 7`) y fija la tasa de refresco a 120Hz/máxima (`min_refresh_rate`, `peak_refresh_rate`, `user_refresh_rate`) para reducir el tiempo de respuesta del panel táctil.
+  - **Zero-Latency de Animaciones**: Desactiva las escalas de animación del sistema operativo (`window_animation_scale`, `transition_animation_scale`, `animator_duration_scale 0`) durante la sesión de juego.
+  - **Restauración Automática de Fábrica**: Los valores originales se guardan y se restauran íntegramente al salir del juego o reiniciar.
+- **📶 Optimizador de Red Wi-Fi Anti-Jitter (`NetworkOptimizerController`)**:
+  - **Eliminación de Picos de Lag**: Desactiva el modo de ahorro y suspensión de energía del chip Wi-Fi (`wifi_suspend_optimizations_enabled 0`, `cmd wifi set-power-save-mode 0`, `cmd wifi set-low-latency-mode enabled`) mediante Shizuku.
+  - **Estabilización de Ping UDP/TCP**: Mantiene los sockets de paquetes de red abiertos y priorizados, ideal para shooters (Free Fire, COD Mobile, PUBG) y MOBAs (Wild Rift).
+  - **Restauración al Salir**: Reactiva las políticas estándar de ahorro de batería al cerrar el juego.
+- **🎯 Mira Gamer Táctica Flotante (Crosshair HUD)**:
+  - **Retícula Vectorial Acelerada por Hardware (`CrosshairOverlayView`)**: Superpone una mira personalizable en el centro exacto de la pantalla para mejorar la precisión de disparo de cadera.
+  - **Estilos y Colores Neón**: Diseños en Cruz Táctica (`CROSS`), Punto Central (`DOT`), Círculo con Punto (`CIRCLE_DOT`) y Diamante (`DIAMOND`) con colores Neón Cyan, Verde, Rojo o Púrpura.
 - **🎛️ HUD Flotante Gamer In-Game (`GameOverlayService`)**:
   - **Burbuja Flotante Arrastrable**: Monitor de FPS en vivo, temperatura de SoC y uso de RAM sobre cualquier juego.
   - **Panel Desplegable con Pestañas**: Cambia controladores GPU (Vulkan, ANGLE, OpenGL), prueba o ajusta resoluciones/DPI, conmuta el Modo DND y gestiona la hibernación de aplicaciones al vuelo sin pausar la partida.

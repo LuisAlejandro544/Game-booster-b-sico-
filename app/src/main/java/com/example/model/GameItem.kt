@@ -58,6 +58,9 @@ data class GameItem(
     val enableDnd: Boolean = true,
     val dndAllowCalls: Boolean = true,
     val dndBlockHeadsUp: Boolean = true,
+    val enableTouchBoost: Boolean = true,
+    val enableWifiHighPerf: Boolean = true,
+    val enableCrosshair: Boolean = false,
     val displayScale: DisplayResolutionScale = DisplayResolutionScale.NATIVE_100
 )
 

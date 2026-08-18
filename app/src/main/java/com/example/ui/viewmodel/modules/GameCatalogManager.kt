@@ -43,6 +43,9 @@ class GameCatalogManager(
                     val dndEnabled = prefs.getGameDndEnabled(app.packageName)
                     val dndCalls = prefs.getDndAllowCalls()
                     val dndHeadsUp = prefs.getDndBlockHeadsUp()
+                    val touchBoost = prefs.getGameTouchBoost(app.packageName)
+                    val wifiHighPerf = prefs.getGameWifiHighPerf(app.packageName)
+                    val crosshair = prefs.getGameCrosshairEnabled(app.packageName)
                     list.add(
                         app.copy(
                             graphicsDriver = savedDriver,
@@ -53,6 +56,9 @@ class GameCatalogManager(
                             enableDnd = dndEnabled,
                             dndAllowCalls = dndCalls,
                             dndBlockHeadsUp = dndHeadsUp,
+                            enableTouchBoost = touchBoost,
+                            enableWifiHighPerf = wifiHighPerf,
+                            enableCrosshair = crosshair,
                             isCustomAdded = true
                         )
                     )
@@ -82,7 +88,10 @@ class GameCatalogManager(
         enableOverlayHud: Boolean,
         enableDnd: Boolean = true,
         dndAllowCalls: Boolean = true,
-        dndBlockHeadsUp: Boolean = true
+        dndBlockHeadsUp: Boolean = true,
+        enableTouchBoost: Boolean = true,
+        enableWifiHighPerf: Boolean = true,
+        enableCrosshair: Boolean = false
     ): GameItem {
         prefs.setGameDriver(game.packageName, driver)
         prefs.setGameDisplayScale(game.packageName, displayScale)
@@ -92,6 +101,9 @@ class GameCatalogManager(
         prefs.setGameDndEnabled(game.packageName, enableDnd)
         prefs.setDndAllowCalls(dndAllowCalls)
         prefs.setDndBlockHeadsUp(dndBlockHeadsUp)
+        prefs.setGameTouchBoost(game.packageName, enableTouchBoost)
+        prefs.setGameWifiHighPerf(game.packageName, enableWifiHighPerf)
+        prefs.setGameCrosshairEnabled(game.packageName, enableCrosshair)
 
         val updatedGame = game.copy(
             graphicsDriver = driver,
@@ -101,7 +113,10 @@ class GameCatalogManager(
             enableOverlayHud = enableOverlayHud,
             enableDnd = enableDnd,
             dndAllowCalls = dndAllowCalls,
-            dndBlockHeadsUp = dndBlockHeadsUp
+            dndBlockHeadsUp = dndBlockHeadsUp,
+            enableTouchBoost = enableTouchBoost,
+            enableWifiHighPerf = enableWifiHighPerf,
+            enableCrosshair = enableCrosshair
         )
 
         _gamesList.value = _gamesList.value.map {

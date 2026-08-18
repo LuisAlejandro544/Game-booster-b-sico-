@@ -30,6 +30,12 @@ Este documento traza las fases de desarrollo y evolución de **Game Booster Turb
   - Lista de excepciones para apps críticas y conmutador de llamadas entrantes prioritarias.
   - Gestión directa desde la hoja de ajustes por juego y en vivo dentro del HUD flotante.
   - Reversión automática a los ajustes originales al salir del juego o reiniciar el teléfono.
+- [x] **Touch Boost & Respuesta Táctil Ultrabaja (`TouchResponseController`)**:
+  - Overclock de velocidad de puntero (`pointer_speed 7`), fijación de tasa de refresco a 120Hz/máxima y reducción de latencia de animaciones con reversión automática.
+- [x] **Optimizador Wi-Fi Anti-Jitter (`NetworkOptimizerController`)**:
+  - Desactivación de suspensión de energía del chip Wi-Fi (`wifi_suspend_optimizations_enabled 0` y `set-low-latency-mode enabled`) para estabilidad de ping en multijugador online.
+- [x] **Mira Gamer Táctica Flotante (Crosshair HUD)**:
+  - Superposición de retícula de puntería personalizable en pantalla con estilos en cruz, punto, círculo y diamante con colores Neón Gamer.
 - [x] **Gestión de Hibernación y Excepciones de Apps en Vivo**:
   - Lista de apps despiertas (whitelist) y objetivos de reposo forzado (blacklist) accesibles desde el panel HUD.
   - Deshibernación y reposo instantáneo con feedback visual en pantalla.

@@ -45,6 +45,8 @@ class GameWatcherService : Service() {
     private var enableDnd: Boolean = true
     private var dndAllowCalls: Boolean = true
     private var dndBlockHeadsUp: Boolean = true
+    private var enableTouchBoost: Boolean = true
+    private var enableWifiHighPerf: Boolean = true
 
     private var hasBeenInForeground = false
     private var consecutiveBackgroundChecks = 0
@@ -84,6 +86,8 @@ class GameWatcherService : Service() {
         enableDnd = intent.getBooleanExtra(EXTRA_ENABLE_DND, true)
         dndAllowCalls = intent.getBooleanExtra(EXTRA_DND_ALLOW_CALLS, true)
         dndBlockHeadsUp = intent.getBooleanExtra(EXTRA_DND_BLOCK_HEADS_UP, true)
+        enableTouchBoost = intent.getBooleanExtra(EXTRA_ENABLE_TOUCH_BOOST, true)
+        enableWifiHighPerf = intent.getBooleanExtra(EXTRA_ENABLE_WIFI_HIGH_PERF, true)
 
         if (targetPackage.isNullOrBlank()) {
             stopSelf()
@@ -93,7 +97,7 @@ class GameWatcherService : Service() {
         // Start Foreground Notification
         val notification = buildForegroundNotification(
             "🔥 Modo Turbo Gamer Activo: $targetGameTitle",
-            "Optimizando CPU, GPU, resolución, DND y RAM en vivo"
+            "Optimizando CPU, GPU, táctil, Wi-Fi, DND y RAM en vivo"
         )
         startForeground(NOTIFICATION_ID, notification)
 
@@ -123,7 +127,25 @@ class GameWatcherService : Service() {
                 )
             }
 
-            // 1.4 Apply Gamer DND (No Molestar Gamer) & Heads-up blocking
+            // 1.3 Apply Touch Boost & Sampling Latency Killer
+            if (enableTouchBoost) {
+                val pointerSpeed = prefs.getTouchPointerSpeed()
+                val forceMaxHz = prefs.getTouchMaxHz()
+                val zeroAnim = prefs.getTouchZeroAnimation()
+                ShizukuManager.applyTouchBoost(
+                    context = this@GameWatcherService,
+                    pointerSpeed = pointerSpeed,
+                    forceMaxHz = forceMaxHz,
+                    zeroAnimations = zeroAnim
+                )
+            }
+
+            // 1.4 Apply Wi-Fi Anti-Jitter / High Performance
+            if (enableWifiHighPerf) {
+                ShizukuManager.applyWifiHighPerf(this@GameWatcherService)
+            }
+
+            // 1.5 Apply Gamer DND (No Molestar Gamer) & Heads-up blocking
             if (enableDnd) {
                 val dndExceptions = prefs.getDndExceptions()
                 ShizukuManager.applyGamerDnd(
@@ -134,7 +156,7 @@ class GameWatcherService : Service() {
                 )
             }
 
-            // 1.5 Launch Floating HUD Overlay if permitted and enabled
+            // 1.6 Launch Floating HUD Overlay if permitted and enabled
             if (android.provider.Settings.canDrawOverlays(this@GameWatcherService) && prefs.getGameOverlayHud(pkg)) {
                 GameOverlayService.start(
                     context = this@GameWatcherService,
@@ -198,6 +220,12 @@ class GameWatcherService : Service() {
     private suspend fun restoreAllSystemSettings() {
         // Stop Floating In-Game HUD
         GameOverlayService.stop(this@GameWatcherService)
+
+        // Restore Touch Boost & Sampling
+        ShizukuManager.restoreTouchSettings(this@GameWatcherService)
+
+        // Restore Wi-Fi High Performance
+        ShizukuManager.restoreWifiSettings(this@GameWatcherService)
 
         // Restore DND Gamer back to stock
         GamerDndController.restoreDndSettings(this@GameWatcherService, ShizukuManager.isAuthorized)
@@ -299,6 +327,8 @@ class GameWatcherService : Service() {
         const val EXTRA_ENABLE_DND = "extra_enable_dnd"
         const val EXTRA_DND_ALLOW_CALLS = "extra_dnd_allow_calls"
         const val EXTRA_DND_BLOCK_HEADS_UP = "extra_dnd_block_heads_up"
+        const val EXTRA_ENABLE_TOUCH_BOOST = "extra_enable_touch_boost"
+        const val EXTRA_ENABLE_WIFI_HIGH_PERF = "extra_enable_wifi_high_perf"
 
         fun start(
             context: Context,
@@ -310,7 +340,9 @@ class GameWatcherService : Service() {
             displayScale: DisplayResolutionScale = DisplayResolutionScale.NATIVE_100,
             enableDnd: Boolean = true,
             dndAllowCalls: Boolean = true,
-            dndBlockHeadsUp: Boolean = true
+            dndBlockHeadsUp: Boolean = true,
+            enableTouchBoost: Boolean = true,
+            enableWifiHighPerf: Boolean = true
         ) {
             val intent = Intent(context, GameWatcherService::class.java).apply {
                 action = ACTION_START_WATCHER
@@ -323,6 +355,8 @@ class GameWatcherService : Service() {
                 putExtra(EXTRA_ENABLE_DND, enableDnd)
                 putExtra(EXTRA_DND_ALLOW_CALLS, dndAllowCalls)
                 putExtra(EXTRA_DND_BLOCK_HEADS_UP, dndBlockHeadsUp)
+                putExtra(EXTRA_ENABLE_TOUCH_BOOST, enableTouchBoost)
+                putExtra(EXTRA_ENABLE_WIFI_HIGH_PERF, enableWifiHighPerf)
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(intent)

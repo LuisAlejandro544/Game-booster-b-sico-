@@ -58,6 +58,9 @@ Cualquier intervención debe alinearse con una o varias de las fases del ciclo d
   - Al salir del juego o pasar a segundo plano, se debe ejecutar inmediatamente la restauración completa del sistema a sus valores normales de fábrica.
   - Registrar y mantener `BootRecoveryReceiver` para garantizar el restablecimiento ante cualquier reinicio imprevisto del dispositivo.
 - **Escala de Resolución y DPI (`DisplayScaleController`)**: Toda modificación de `wm size` o `wm density` debe regirse por la arquitectura failsafe de 5 capas (Watchdog Daemon con timeout de 35s en shell desacoplado, Botón de Pánico permanente en notificación `EmergencyResetReceiver`, `BootRecoveryReceiver`, clamping simétrico par y test de 15s con auto-revert).
+- **Touch Boost y Optimizador Wi-Fi**:
+  - `TouchResponseController` y `NetworkOptimizerController` deben siempre guardar el estado previo del usuario en `BoosterPreferences` antes de modificar `pointer_speed`, `refresh_rate`, escalas de animación o `wifi_suspend_optimizations_enabled`.
+  - La restauración a los valores originales debe ejecutarse fielmente al salir del juego mediante `GameWatcherService` y ante reinicios en `BootRecoveryReceiver`.
 - **Nativo C++ / Rust**: Mantener siempre los métodos de respaldo (*fallback*) en Kotlin puro dentro de `NativeEngineBridge.kt` y `RustCoreBridge.kt` para asegurar que la app compila y se ejecuta incluso si los archivos `.so` no han sido generados por el NDK.
 - **Telemetría Exacta**: Realizar el cálculo del uso de CPU en tiempo real leyendo deltas de `/proc/stat` y temperatura del SoC en nodos térmicos reales del kernel.
 - **Material Design 3**: Utilizar la paleta de colores centralizada en `Theme.kt` y `Color.kt` con estilo Neon Gamer.
