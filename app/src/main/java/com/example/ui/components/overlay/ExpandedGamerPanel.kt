@@ -15,15 +15,19 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Gamepad
-import androidx.compose.material.icons.filled.VerticalAlignBottom
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -86,10 +90,12 @@ fun ExpandedGamerPanel(
     onDrag: (Float, Float) -> Unit = { _, _ -> }
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
+    val contentScrollState = rememberScrollState()
 
     Card(
         modifier = Modifier
-            .widthIn(min = 320.dp, max = 360.dp)
+            .widthIn(min = 320.dp, max = 380.dp)
+            .heightIn(min = 180.dp, max = 300.dp)
             .clip(RoundedCornerShape(16.dp))
             .border(
                 1.5.dp,
@@ -105,9 +111,9 @@ fun ExpandedGamerPanel(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(14.dp)
+                .padding(12.dp)
         ) {
-            // Header: Game Title, Draggable Area and Actions
+            // Header: Game Title, Draggable Area and Window Action Buttons
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -133,7 +139,8 @@ fun ExpandedGamerPanel(
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.weight(1f, fill = false)
                 ) {
                     Box(
                         modifier = Modifier
@@ -156,50 +163,60 @@ fun ExpandedGamerPanel(
                             style = MaterialTheme.typography.labelSmall.copy(
                                 color = NeonCyan,
                                 fontWeight = FontWeight.Black,
-                                fontSize = 10.sp,
-                                letterSpacing = 1.sp
+                                fontSize = 9.5.sp,
+                                letterSpacing = 0.8.sp
                             )
                         )
                         Text(
                             text = targetGameTitle,
                             style = MaterialTheme.typography.titleSmall.copy(
                                 color = TextPrimary,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp
                             ),
                             maxLines = 1
                         )
                     }
                 }
 
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                // Window Controls: Minimize (-) and Close (X)
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     IconButton(
                         onClick = onMinimize,
-                        modifier = Modifier.size(32.dp).testTag("hud_minimize_button")
+                        modifier = Modifier
+                            .size(30.dp)
+                            .clip(CircleShape)
+                            .background(GamerSurfaceElevated)
+                            .testTag("hud_minimize_button")
                     ) {
                         Icon(
-                            imageVector = Icons.Default.VerticalAlignBottom,
-                            contentDescription = "Minimizar",
-                            tint = TextSecondary,
-                            modifier = Modifier.size(18.dp)
+                            imageVector = Icons.Default.Remove,
+                            contentDescription = "Minimizar HUD",
+                            tint = NeonCyan,
+                            modifier = Modifier.size(16.dp)
                         )
                     }
                     IconButton(
                         onClick = onClose,
-                        modifier = Modifier.size(32.dp).testTag("hud_close_button")
+                        modifier = Modifier
+                            .size(30.dp)
+                            .clip(CircleShape)
+                            .background(GamerSurfaceElevated)
+                            .testTag("hud_close_button")
                     ) {
                         Icon(
                             imageVector = Icons.Default.Close,
-                            contentDescription = "Cerrar",
+                            contentDescription = "Cerrar HUD",
                             tint = NeonRed,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(16.dp)
                         )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // Navigation Tabs
+            // Navigation Tabs with single-line labels
             TabRow(
                 selectedTabIndex = selectedTab,
                 containerColor = GamerSurfaceElevated,
@@ -208,9 +225,10 @@ fun ExpandedGamerPanel(
                     TabRowDefaults.SecondaryIndicator(
                         modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
                         color = NeonCyan,
-                        height = 3.dp
+                        height = 2.5.dp
                     )
                 },
+                divider = {},
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(8.dp))
@@ -222,10 +240,13 @@ fun ExpandedGamerPanel(
                         text = {
                             Text(
                                 text = tab.title,
-                                style = MaterialTheme.typography.labelMedium.copy(
-                                    fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Normal,
-                                    fontSize = 11.sp
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Medium,
+                                    fontSize = 10.sp,
+                                    letterSpacing = 0.sp
                                 ),
+                                maxLines = 1,
+                                softWrap = false,
                                 color = if (selectedTab == index) NeonCyan else TextSecondary
                             )
                         },
@@ -234,66 +255,74 @@ fun ExpandedGamerPanel(
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // Feedback Message Banner
-            AnimatedVisibility(
-                visible = !feedbackMessage.isNullOrBlank(),
-                enter = fadeIn() + slideInVertically(),
-                exit = fadeOut() + slideOutVertically()
+            // Scrollable Tab Content Area
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f, fill = false)
+                    .verticalScroll(contentScrollState)
             ) {
-                feedbackMessage?.let { msg ->
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 10.dp),
-                        colors = CardDefaults.cardColors(containerColor = NeonGreen.copy(alpha = 0.15f)),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, NeonGreen.copy(alpha = 0.5f))
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                // Feedback Message Banner
+                AnimatedVisibility(
+                    visible = !feedbackMessage.isNullOrBlank(),
+                    enter = fadeIn() + slideInVertically(),
+                    exit = fadeOut() + slideOutVertically()
+                ) {
+                    feedbackMessage?.let { msg ->
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 8.dp),
+                            colors = CardDefaults.cardColors(containerColor = NeonGreen.copy(alpha = 0.15f)),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, NeonGreen.copy(alpha = 0.5f))
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Bolt,
-                                contentDescription = null,
-                                tint = NeonGreen,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Text(
-                                text = msg,
-                                style = MaterialTheme.typography.bodySmall.copy(
-                                    color = NeonGreen,
-                                    fontWeight = FontWeight.SemiBold,
-                                    fontSize = 11.sp
+                            Row(
+                                modifier = Modifier.padding(6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Bolt,
+                                    contentDescription = null,
+                                    tint = NeonGreen,
+                                    modifier = Modifier.size(14.dp)
                                 )
-                            )
+                                Text(
+                                    text = msg,
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        color = NeonGreen,
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 10.5.sp
+                                    )
+                                )
+                            }
                         }
                     }
                 }
-            }
 
-            // Tab Content
-            when (HudTab.entries[selectedTab]) {
-                HudTab.TELEMETRY -> HudTelemetryTab(fps = fps, metrics = metrics)
-                HudTab.RESOLUTION -> HudResolutionTab(
-                    currentScale = currentDisplayScale,
-                    isTestingResolution = isTestingResolution,
-                    testCountdownSeconds = testCountdownSeconds,
-                    onScaleSelected = onScaleSelected,
-                    onStartTest = onStartResolutionTest,
-                    onConfirmTest = onConfirmResolutionTest,
-                    onCancelTest = onCancelResolutionTest
-                )
-                HudTab.DRIVERS -> HudDriversTab(
-                    currentDriver = currentDriver,
-                    onDriverSelected = onDriverSelected
-                )
-                HudTab.QUICK_BOOST -> HudQuickBoostTab(
-                    metrics = metrics,
-                    onQuickBoost = onQuickBoost
-                )
+                // Active Tab Content
+                when (HudTab.entries[selectedTab]) {
+                    HudTab.TELEMETRY -> HudTelemetryTab(fps = fps, metrics = metrics)
+                    HudTab.RESOLUTION -> HudResolutionTab(
+                        currentScale = currentDisplayScale,
+                        isTestingResolution = isTestingResolution,
+                        testCountdownSeconds = testCountdownSeconds,
+                        onScaleSelected = onScaleSelected,
+                        onStartTest = onStartResolutionTest,
+                        onConfirmTest = onConfirmResolutionTest,
+                        onCancelTest = onCancelResolutionTest
+                    )
+                    HudTab.DRIVERS -> HudDriversTab(
+                        currentDriver = currentDriver,
+                        onDriverSelected = onDriverSelected
+                    )
+                    HudTab.QUICK_BOOST -> HudQuickBoostTab(
+                        metrics = metrics,
+                        onQuickBoost = onQuickBoost
+                    )
+                }
             }
         }
     }

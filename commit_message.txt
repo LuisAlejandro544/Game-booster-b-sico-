@@ -1,23 +1,8 @@
-feat(hud): add in-game resolution & DPI scaling with 15-second live test mode
+fix(hud): add vertical scroll to overlay, redesign minimize button, and allow minimizing during resolution tests
 
-- Add dedicated "Resolución" tab in floating In-Game Gamer HUD (HudResolutionTab.kt)
-- Support live switching between Native 100%, Balanced 85%, Performance 75%, and Ultra 50% resolution & DPI scales during gameplay
-- Implement 15-second interactive test mode directly inside HUD overlay with real-time countdown, Confirm, and Revert controls
-- Integrate display scaling actions in GameOverlayService and DraggableOverlayWindowManager backed by the 5-layer failsafe architecture
-
-fix(auth): resolve Google Play Services login restriction and Shell administration block
-
-- Ensure background app hibernation strictly protects all Google auth, login, and system packages (com.google.android.gms, com.google.android.gsf, com.android.vending, com.google.android.play.games)
-- Prevent accidental shell suspension (pm suspend) or process freezing (am set-inactive) on authentication frameworks
-- Add automatic system-wide recovery in MainActivity and BoosterViewModel to unsuspend and heal Google Play Services on app launch and resume
-- Guarantee smooth Google Play login across all games without "Managed by Shell" restrictions
-
-feat(resolution): implement real-time second-by-second toast countdown (15s..1s) for resolution testing
-- Create ResolutionCountdownNotifier for live ticking toasts (15, 14, 13, 12... down to 1s) with instant cancellation of previous toasts to prevent Android toast queues
-- Ensure notification feedback displays over full-screen games and works seamlessly during "Do Not Disturb" (No molestar) modes
-- Trigger automatic native restoration feedback and toast upon countdown expiration or explicit user cancellation
-
-fix(overlay): eliminate floating HUD jitter and wobble during screen dragging
-- Refactor DraggableOverlayWindowManager to track absolute screen-space coordinates (rawX, rawY)
-- Implement zero-jitter pointer tracking in FloatingGamerBubble and ExpandedGamerPanel via pointerInteropFilter
-- Decouple window position updates from relative touch deltas to ensure silky smooth 60/120Hz gesture physics
+- Fix cramped UI layout on landscape/compact screens by adding `verticalScroll` to the HUD panel content and applying responsive height constraints
+- Redesign window minimize button with an intuitive cyan minus icon (`Icons.Default.Remove`) in a dedicated circular surface, clearly distinguishing it from the close button
+- Enable seamless HUD minimization during active 15-second resolution test mode without killing or disrupting the timer/service
+- Add live glowing amber countdown badge (`⏱️ Xs`) directly on `FloatingGamerBubble` when minimized during resolution testing
+- Prevent awkward tab title text wrapping (e.g., "Resoluc\nión") by refining tab layout with single-line text and tuned typography
+- Auto-minimize HUD panel to floating bubble upon directly applying or confirming a display resolution scale for seamless return to gameplay

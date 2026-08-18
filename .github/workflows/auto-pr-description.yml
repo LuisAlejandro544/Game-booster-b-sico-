@@ -1,0 +1,223 @@
+name: Auto Generate PR Title & Description
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: auto-pr-desc-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  generate-pr-description:
+    name: Generate PR Description from Commits
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Resolve GitHub Auth Token
+        id: auth-token
+        run: |
+          if [ -n "${{ secrets.GH_PAT }}" ]; then
+            echo "Using secrets.GH_PAT"
+            echo "TOKEN=${{ secrets.GH_PAT }}" >> $GITHUB_OUTPUT
+          elif [ -n "${{ secrets.PERSONAL_ACCESS_TOKEN }}" ]; then
+            echo "Using secrets.PERSONAL_ACCESS_TOKEN"
+            echo "TOKEN=${{ secrets.PERSONAL_ACCESS_TOKEN }}" >> $GITHUB_OUTPUT
+          elif [ -n "${{ secrets.GH_TOKEN }}" ]; then
+            echo "Using secrets.GH_TOKEN"
+            echo "TOKEN=${{ secrets.GH_TOKEN }}" >> $GITHUB_OUTPUT
+          elif [ -n "${{ secrets.AUTO_PR_TOKEN }}" ]; then
+            echo "Using secrets.AUTO_PR_TOKEN"
+            echo "TOKEN=${{ secrets.AUTO_PR_TOKEN }}" >> $GITHUB_OUTPUT
+          else
+            echo "Using default secrets.GITHUB_TOKEN"
+            echo "TOKEN=${{ secrets.GITHUB_TOKEN }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ steps.auth-token.outputs.TOKEN }}
+          fetch-depth: 0
+
+      - name: Extract PR Commits (Exclusive History)
+        id: get-commits
+        run: |
+          BASE_REF="${{ github.base_ref }}"
+          echo "Fetching base branch origin/$BASE_REF..."
+          git fetch origin "$BASE_REF" --depth=200
+
+          # Extract only the commits belonging to this PR branch compared to base
+          COMMIT_LIST=$(git log "origin/$BASE_REF..HEAD" --pretty=format:"- %s (%h)%n%b" --no-merges | sed '/^$/d')
+          
+          if [ -z "$COMMIT_LIST" ]; then
+            echo "No new commits detected in PR range."
+            echo "has_commits=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "has_commits=true" >> $GITHUB_OUTPUT
+          
+          # Save commits to temporary file to avoid bash multiline escaping issues
+          echo "$COMMIT_LIST" > /tmp/pr_commits.txt
+          echo "Extracted PR commits:"
+          cat /tmp/pr_commits.txt
+
+      - name: Generate PR Description (AI or Smart Parser)
+        if: steps.get-commits.outputs.has_commits == 'true'
+        id: generate
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          COMMITS_RAW=$(cat /tmp/pr_commits.txt)
+          
+          # 1. Primary: OpenRouter with dots-studio/dots-3-note-preview:free
+          if [ -n "$OPENROUTER_API_KEY" ]; then
+            echo "Using OpenRouter API with model dots-studio/dots-3-note-preview:free (with Reasoning enabled)..."
+            
+            SYSTEM_PROMPT="Eres un tech lead senior. Analiza la siguiente lista de commits nuevos de un Pull Request y genera:
+1. Primera línea: Un título conciso en formato Conventional Commits (ej. feat(hud): optimize resolution controls and layout).
+2. Línea en blanco.
+3. Cuerpo en Markdown estructurado:
+   - ## 📋 Resumen de Cambios (2-3 oraciones ejecutivas de lo que hace este PR)
+   - ## 🚀 Funcionalidades y Mejoras (Lista con viñetas claras)
+   - ## 🛠️ Detalles Técnicos (Módulos o componentes tocados)
+   - ## 📦 Commits Incluidos
+No incluyas etiquetas \`\`\`markdown ni bloques de razonamiento internos en tu respuesta final."
+
+            USER_CONTENT="Genera el título y descripción del PR para estos commits recientes:\n\n$COMMITS_RAW"
+
+            jq -n \
+              --arg model "dots-studio/dots-3-note-preview:free" \
+              --arg system "$SYSTEM_PROMPT" \
+              --arg user "$USER_CONTENT" \
+              '{
+                model: $model,
+                messages: [
+                  { role: "system", content: $system },
+                  { role: "user", content: $user }
+                ],
+                reasoning: {
+                  effort: "high",
+                  exclude: true
+                },
+                temperature: 0.2,
+                max_tokens: 3000
+              }' > /tmp/openrouter_payload.json
+
+            RESPONSE=$(curl -s -X POST \
+              "https://openrouter.ai/api/v1/chat/completions" \
+              -H "Authorization: Bearer $OPENROUTER_API_KEY" \
+              -H "Content-Type: application/json" \
+              -H "HTTP-Referer: https://github.com" \
+              -H "X-Title: GameBooster-AutoPR" \
+              -d @/tmp/openrouter_payload.json)
+
+            RAW_AI_TEXT=$(echo "$RESPONSE" | jq -r '.choices[0].message.content // empty')
+
+            if [ -n "$RAW_AI_TEXT" ] && [ "$RAW_AI_TEXT" != "null" ]; then
+              # Strip any <thought>...</thought> or <think>...</think> tags so reasoning never leaks into PR
+              AI_TEXT=$(python3 -c "
+import sys, re
+text = sys.stdin.read()
+text = re.sub(r'<(think|thought)>.*?</\1>', '', text, flags=re.DOTALL)
+text = re.sub(r'</?(think|thought)>', '', text)
+print(text.strip())
+" <<< "$RAW_AI_TEXT")
+
+              if [ -n "$AI_TEXT" ]; then
+                echo "$AI_TEXT" > /tmp/pr_content.md
+              fi
+            else
+              echo "OpenRouter response did not return content. Response was:"
+              echo "$RESPONSE"
+            fi
+          fi
+
+          # 2. Secondary Fallback: Gemini API
+          if [ ! -f /tmp/pr_content.md ] && [ -n "$GEMINI_API_KEY" ]; then
+            echo "Falling back to Gemini API..."
+            
+            PROMPT=$(cat << 'EOF'
+Eres un tech lead senior. Analiza la siguiente lista de commits nuevos de un Pull Request y genera:
+1. Primera línea: Un título conciso en formato Conventional Commits (ej. feat(hud): optimize resolution controls and layout).
+2. Línea en blanco.
+3. Cuerpo en Markdown estructurado:
+   - ## 📋 Resumen de Cambios (2-3 oraciones ejecutivas de lo que hace este PR)
+   - ## 🚀 Funcionalidades y Mejoras (Lista con viñetas claras)
+   - ## 🛠️ Detalles Técnicos (Módulos o componentes tocados)
+   - ## 📦 Commits Incluidos
+No incluyas etiquetas ```markdown al principio o final.
+EOF
+)
+            jq -n \
+              --arg prompt "$PROMPT" \
+              --arg commits "$COMMITS_RAW" \
+              '{
+                contents: [{
+                  parts: [
+                    { text: ($prompt + "\n\nCommits del PR:\n" + $commits) }
+                  ]
+                }],
+                generationConfig: {
+                  temperature: 0.2,
+                  maxOutputTokens: 1500
+                }
+              }' > /tmp/gemini_payload.json
+
+            RESPONSE=$(curl -s -X POST \
+              "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$GEMINI_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d @/tmp/gemini_payload.json)
+
+            AI_TEXT=$(echo "$RESPONSE" | jq -r '.candidates[0].content.parts[0].text // empty')
+
+            if [ -n "$AI_TEXT" ] && [ "$AI_TEXT" != "null" ]; then
+              echo "$AI_TEXT" > /tmp/pr_content.md
+            fi
+          fi
+
+          # 3. Fallback: Local Structured Parser
+          if [ ! -f /tmp/pr_content.md ]; then
+            echo "Generating structured PR description from commit messages..."
+            FIRST_COMMIT_TITLE=$(head -n 1 /tmp/pr_commits.txt | sed 's/^- //')
+            
+            cat << EOF > /tmp/pr_content.md
+$FIRST_COMMIT_TITLE
+
+## 📋 Resumen del Pull Request
+Este Pull Request consolida los cambios y mejoras recientes del proyecto según el historial de commits de la rama.
+
+## 🚀 Cambios Implementados
+$(cat /tmp/pr_commits.txt)
+
+---
+*Generado automáticamente por GitHub Actions basándose en los commits del PR.*
+EOF
+          fi
+
+          # Separate title (first line) and body (rest of lines)
+          PR_TITLE=$(head -n 1 /tmp/pr_content.md | sed 's/^#* //')
+          sed '1d' /tmp/pr_content.md > /tmp/pr_body.md
+
+          echo "title=$PR_TITLE" >> $GITHUB_OUTPUT
+          echo "Generated Title: $PR_TITLE"
+
+      - name: Update Pull Request Title and Body
+        if: steps.get-commits.outputs.has_commits == 'true'
+        env:
+          GH_TOKEN: ${{ steps.auth-token.outputs.TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ steps.generate.outputs.title }}
+        run: |
+          echo "Updating PR #$PR_NUMBER..."
+          gh pr edit "$PR_NUMBER" \
+            --title "$PR_TITLE" \
+            --body-file /tmp/pr_body.md
+          
+          echo "Pull Request #$PR_NUMBER updated successfully!"

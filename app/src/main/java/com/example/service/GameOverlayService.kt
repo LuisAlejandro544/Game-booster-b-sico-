@@ -36,6 +36,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class GameOverlayService : Service() {
 
@@ -230,6 +231,10 @@ class GameOverlayService : Service() {
                     scale = newScale,
                     isAuthorized = ShizukuManager.isAuthorized
                 )
+                withContext(Dispatchers.Main) {
+                    isExpanded = false
+                    overlayWindowManager.requestLayoutUpdate()
+                }
                 feedbackMessage = "✓ Escala ${newScale.title} aplicada"
                 delay(3000L)
                 feedbackMessage = null
@@ -284,6 +289,8 @@ class GameOverlayService : Service() {
         if (pkg != null) {
             prefs.setGameDisplayScale(pkg, currentDisplayScale)
         }
+        isExpanded = false
+        overlayWindowManager.requestLayoutUpdate()
         feedbackMessage = "✓ Escala ${currentDisplayScale.title} confirmada"
         serviceScope.launch {
             delay(3000L)

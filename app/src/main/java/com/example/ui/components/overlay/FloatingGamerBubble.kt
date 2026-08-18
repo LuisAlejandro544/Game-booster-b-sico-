@@ -14,6 +14,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.RocketLaunch
 import androidx.compose.material.icons.filled.Thermostat
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -37,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.theme.GamerCardBorder
 import com.example.ui.theme.GamerDarkBackground
+import com.example.ui.theme.NeonAmber
 import com.example.ui.theme.NeonCyan
 import com.example.ui.theme.NeonGreen
 import com.example.ui.theme.NeonOrange
@@ -51,6 +53,8 @@ import kotlin.math.hypot
 fun FloatingGamerBubble(
     fps: Int,
     temp: Int,
+    isTestingResolution: Boolean = false,
+    testCountdownSeconds: Int = 15,
     onBubbleClick: () -> Unit,
     onDragStart: (Float, Float) -> Unit = { _, _ -> },
     onDragMove: (Float, Float) -> Unit = { _, _ -> },
@@ -61,12 +65,18 @@ fun FloatingGamerBubble(
     var touchDownRawY by remember { mutableFloatStateOf(0f) }
     var isDragging by remember { mutableStateOf(false) }
 
+    val borderGradient = if (isTestingResolution) {
+        Brush.horizontalGradient(listOf(NeonAmber, NeonOrange))
+    } else {
+        Brush.horizontalGradient(listOf(NeonCyan, NeonPurple))
+    }
+
     Card(
         modifier = Modifier
             .clip(RoundedCornerShape(24.dp))
             .border(
                 1.5.dp,
-                Brush.horizontalGradient(listOf(NeonCyan, NeonPurple)),
+                borderGradient,
                 RoundedCornerShape(24.dp)
             )
             .pointerInteropFilter { motionEvent ->
@@ -123,7 +133,13 @@ fun FloatingGamerBubble(
                 modifier = Modifier
                     .size(26.dp)
                     .clip(CircleShape)
-                    .background(Brush.linearGradient(listOf(NeonCyan, NeonPurple))),
+                    .background(
+                        if (isTestingResolution) {
+                            Brush.linearGradient(listOf(NeonAmber, NeonOrange))
+                        } else {
+                            Brush.linearGradient(listOf(NeonCyan, NeonPurple))
+                        }
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -181,6 +197,44 @@ fun FloatingGamerBubble(
                         fontSize = 12.sp
                     )
                 )
+            }
+
+            // Active Resolution Test Timer Badge (visible when testing and minimized)
+            if (isTestingResolution) {
+                Box(
+                    modifier = Modifier
+                        .size(4.dp)
+                        .clip(CircleShape)
+                        .background(GamerCardBorder)
+                )
+
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(NeonAmber.copy(alpha = 0.2f))
+                        .border(1.dp, NeonAmber, RoundedCornerShape(10.dp))
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(3.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Timer,
+                            contentDescription = null,
+                            tint = NeonAmber,
+                            modifier = Modifier.size(12.dp)
+                        )
+                        Text(
+                            text = "${testCountdownSeconds}s",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                color = NeonAmber,
+                                fontWeight = FontWeight.Black,
+                                fontSize = 11.sp
+                            )
+                        )
+                    }
+                }
             }
         }
     }

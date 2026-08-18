@@ -54,6 +54,8 @@ fun GameOverlayHudContent(
             FloatingGamerBubble(
                 fps = currentFps,
                 temp = metrics.cpuTempCelsius.toInt(),
+                isTestingResolution = isTestingResolution,
+                testCountdownSeconds = testCountdownSeconds,
                 onBubbleClick = onToggleExpand,
                 onDragStart = onDragStart,
                 onDragMove = onDragMove,
